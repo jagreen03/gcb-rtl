@@ -6,3 +6,8 @@ xsim.dir/
 *.wdb
 *.pb
 build/
+
+# Icarus Verilog / simulation artifacts
+*.vvp
+*.vcd
+a.out
