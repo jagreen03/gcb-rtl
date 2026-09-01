@@ -1,5 +1,5 @@
 // =============================================================================
-// GreenCoyote-Bay — Top Level Integration (Corrected)
+// GreenCoyote-Bay — Top Level Integration
 // Project: ODIN_Bridge / Cascaded Optical Reduction Fabric
 // Author:  John A. Green
 // Date:    June 2026
@@ -7,13 +7,23 @@
 // Architecture:
 //   greencoyote_top
 //     ├── greencoyote_axi_lite_wrapper   AXI-Lite protocol front door only
-//     ├── greencoyote_pilot_regs         MMIO register block
+//     ├── greencoyote_pilot_regs         MMIO register block (0x00-0xA8)
 //     └── greencoyote_photonic_sequencer Optical reduction data plane
 //
-// pilot_regs sits at top level so all control signals are visible
-// to both the AXI wrapper (MMIO r/w) and the sequencer (data plane).
-// No control signals buried inside submodules.
-// All port connections are explicit — no implicit .name shorthand.
+// pilot_regs sits at top level so all control signals are visible to both the
+// AXI wrapper (MMIO r/w) and the data plane. All port connections are explicit.
+//
+// INTEGRATION STATUS
+//   Implemented data plane : inference reduction (precision, calibration,
+//                            gain trim, AUTO_FIRE, 2-pass 14-GPU reduction, IRQ).
+//   Stubbed subsystems     : crossbar switch, learning appliance, gradient
+//                            all-reduce, ISA execution engine, snapshot/rollback,
+//                            OS task/power management.
+//   The pilot_regs control registers for the stubbed subsystems are fully
+//   wired out to this module's ports so the complete register map survives
+//   synthesis and is exercisable from the host driver. Their *status* inputs
+//   are tied off in the STUB TIE-OFFS block below — replace those connections
+//   with the real subsystem status buses as each block is brought up.
 // =============================================================================
 
 module greencoyote_top (
@@ -54,7 +64,68 @@ module greencoyote_top (
     input  logic        adc_valid,
 
     // Interrupt to host CPU via Vitis shell
-    output logic        interrupt
+    output logic        interrupt,
+
+    // -------------------------------------------------------------------------
+    // Crossbar routing control -> optical switch (0x18-0x20)
+    // -------------------------------------------------------------------------
+    output logic [2:0]  xbar_port_dest [0:7],
+    output logic [1:0]  xbar_mode,
+    output logic        xbar_update,
+
+    // -------------------------------------------------------------------------
+    // Training / LoRA control -> learning appliance (0x24-0x2C)
+    // -------------------------------------------------------------------------
+    output logic        train_mode,
+    output logic        dac_freeze,
+    output logic        sidecar_enable,
+    output logic [2:0]  lora_rank,
+    output logic [15:0] alpha_scaled,
+    output logic [15:0] lora_tile_row,
+    output logic [15:0] lora_tile_col,
+
+    // -------------------------------------------------------------------------
+    // Scaled-learning / gradient all-reduce control (0x30-0x38)
+    // -------------------------------------------------------------------------
+    output logic [9:0]  cell_count,
+    output logic        grad_reduce_en,
+    output logic        grad_reduce_fire,
+    output logic        auto_grad_reduce,
+    output logic [23:0] grad_scale,
+    output logic [1:0]  n_spi_buses,
+    output logic [15:0] spi_clk_div,
+
+    // -------------------------------------------------------------------------
+    // ISA execution engine control -> instruction BRAM / interpreter (0x60-0x74)
+    // -------------------------------------------------------------------------
+    output logic        exec_start,
+    output logic        exec_stop,
+    output logic        exec_reset,
+    output logic        exec_step,
+    output logic [11:0] bram_wr_addr,
+    output logic [31:0] bram_wr_data_lo,
+    output logic [31:0] bram_wr_data_hi,
+    output logic        bram_wr_en,
+    output logic [15:0] lc_init [0:3],
+
+    // -------------------------------------------------------------------------
+    // Snapshot / rollback control (0x84)
+    // -------------------------------------------------------------------------
+    output logic        rollback_en,
+    output logic [7:0]  rollback_limit,
+    output logic        fault_irq_en,
+
+    // -------------------------------------------------------------------------
+    // OS task / power management control (0x90-0xA8)
+    // -------------------------------------------------------------------------
+    output logic [3:0]  active_tid,
+    output logic [3:0]  target_tid,
+    output logic        shutdown_init,
+    output logic        emergency_shutdown_sw,
+    output logic        flush_ombs,
+    output logic        irq_before_power,
+    output logic [11:0] shutdown_timeout_ms,
+    output logic [8:0]  tile_select
 );
 
 // =============================================================================
@@ -184,7 +255,110 @@ greencoyote_pilot_regs u_pilot_regs (
     .queue_full         (queue_full),
 
     // Interrupt output to AXI wrapper
-    .irq_out            (irq_out)
+    .irq_out            (irq_out),
+
+    // ---- Crossbar routing (control out to ports, status stubbed) ----
+    .xbar_port_dest     (xbar_port_dest),
+    .xbar_mode          (xbar_mode),
+    .xbar_update        (xbar_update),
+    .xbar_ready         (1'b0),
+
+    // ---- Training / LoRA (control out to ports, status stubbed) ----
+    .train_mode         (train_mode),
+    .dac_freeze         (dac_freeze),
+    .sidecar_enable     (sidecar_enable),
+    .lora_rank          (lora_rank),
+    .alpha_scaled       (alpha_scaled),
+    .lora_tile_row      (lora_tile_row),
+    .lora_tile_col      (lora_tile_col),
+    .update_pending     (1'b0),
+    .update_active      (1'b0),
+    .channels_updated   (16'h0000),
+    .update_done        (1'b0),
+    .checksum_pass      (1'b0),
+    .checksum_fail      (1'b0),
+
+    // ---- Scaled learning / gradient all-reduce ----
+    .cells_ready        (10'h000),
+    .grad_reduce_done   (1'b0),
+    .cell_count         (cell_count),
+    .grad_reduce_en     (grad_reduce_en),
+    .grad_reduce_fire   (grad_reduce_fire),
+    .auto_grad_reduce   (auto_grad_reduce),
+    .grad_scale         (grad_scale),
+    .n_spi_buses        (n_spi_buses),
+    .spi_clk_div        (spi_clk_div),
+
+    // ---- ISA execution engine (control out to ports, status stubbed) ----
+    .exec_start         (exec_start),
+    .exec_stop          (exec_stop),
+    .exec_reset         (exec_reset),
+    .exec_step          (exec_step),
+    .bram_wr_addr       (bram_wr_addr),
+    .bram_wr_data_lo    (bram_wr_data_lo),
+    .bram_wr_data_hi    (bram_wr_data_hi),
+    .bram_wr_en         (bram_wr_en),
+    .lc_init            (lc_init),
+    .exec_running       (1'b0),
+    .exec_done          (1'b0),
+    .exec_error         (1'b0),
+    .exec_pc            (12'h000),
+    .exec_opcode        (8'h00),
+    .sync_pending       (16'h0000),
+    .sync_timeout       (1'b0),
+    .err_pc             (12'h000),
+    .err_opcode         (8'h00),
+    .err_cause          (4'h0),
+
+    // ---- Snapshot / rollback (control out to ports, status stubbed) ----
+    .snapshot_ready     (1'b0),
+    .snapshot_running   (1'b0),
+    .snap_diverge       (1'b0),
+    .rollback_active    (1'b0),
+    .rollback_complete  (1'b0),
+    .systemic_fault     (1'b0),
+    .restore_ok         (1'b0),
+    .restore_fail       (1'b0),
+    .snap_id_last       (8'h00),
+    .snap_pc_last       (12'h000),
+    .rollback_en        (rollback_en),
+    .rollback_limit     (rollback_limit),
+    .fault_irq_en       (fault_irq_en),
+    .fault_cause        (4'h0),
+    .fault_tile         (8'h00),
+    .fault_pc           (12'h000),
+    .fault_count        (4'h0),
+    .snap_log_base      (12'h000),
+    .snap_log_size      (12'h000),
+    .snap_count         (8'h00),
+
+    // ---- OS task / power management (control out to ports, status stubbed) ----
+    .active_tid            (active_tid),
+    .target_tid           (target_tid),
+    .shutdown_init        (shutdown_init),
+    .emergency_shutdown_sw (emergency_shutdown_sw),
+    .flush_ombs           (flush_ombs),
+    .irq_before_power     (irq_before_power),
+    .shutdown_timeout_ms  (shutdown_timeout_ms),
+    .tile_select          (tile_select),
+    .task_count           (4'h0),
+    .alloc_conflict       (1'b0),
+    .switch_active        (1'b0),
+    .shutdown_ready_status (1'b0),
+    .tid_active_mask      (16'h0000),
+    .tid_state           (8'h00),
+    .tid_priority        (4'h0),
+    .tid_pc              (12'h000),
+    .tid_fault_count     (4'h0),
+    .tid_anchor_valid    (1'b0),
+    .tile_tid            (4'h0),
+    .tile_allocated      (1'b0),
+    .bw_tokens_remain    (16'h0000),
+    .bw_quota_mbps_status (16'h0000),
+    .sched_cycles        (32'h0000_0000),
+    .power_off_assert    (1'b0),
+    .all_tids_snapshotted (1'b0),
+    .omb_flush_done      (1'b0)
 );
 
 // =============================================================================
