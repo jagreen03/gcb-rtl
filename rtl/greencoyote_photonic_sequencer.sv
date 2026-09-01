@@ -88,12 +88,13 @@ seq_state_t state;
 // =============================================================================
 
 logic [11:0] normalized [0:7];      // Post dark-offset, pre-pack
-logic [11:0] packed     [0:7];      // Post precision packing, DAC-ready
+logic [11:0] dac_packed [0:7];      // Post precision packing, DAC-ready
 logic [11:0] pass1a_result;         // ADC result from Pass 1a
 logic [11:0] pass1b_result;         // ADC result from Pass 1b
 logic [12:0] pass2_sum;             // Digital sum of Pass 1a + 1b (13-bit)
 logic        is_14gpu_mode;         // Set when buf_full[5:0] all set — 14 GPU
 logic [3:0]  active_channels;       // Count of channels with data
+logic [19:0] trimmed [0:7];
 
 // =============================================================================
 // Queue depth and queue full logic
@@ -114,9 +115,11 @@ end
 
 always_comb begin
     for (int i = 0; i < NUM_CH; i++) begin
-        automatic logic [19:0] trimmed;
-        trimmed = (buf_data[i][11:0] * trim_ch[i]);    // 12b * 8b = 20b
-        normalized[i] = trimmed[19:8] - dark_offset;   // Scale back to 12b
+        trimmed[i]    = buf_data[i][11:0] * trim_ch[i];   // 12b * 8b = 20b
+        //normalized[i] = trimmed[19:8] - dark_offset; Unsigned subtraction with no floor
+		normalized[i] = (trimmed[i][19:8] > dark_offset)
+              ? trimmed[i][19:8] - dark_offset
+              : 12'h000;
     end
 end
 
@@ -128,14 +131,14 @@ end
 always_comb begin
     for (int i = 0; i < NUM_CH; i++) begin
         if (!buf_full[i]) begin
-            packed[i] = 12'h000;    // Zero-pad inactive channel
+            dac_packed[i] = 12'h000;    // Zero-pad inactive channel
         end else begin
             case (mode_sel)
-                MODE_INT4: packed[i] = {8'h00, normalized[i][3:0]};    // 4-bit in LSBs
-                MODE_FP4:  packed[i] = {6'h00, normalized[i][5:0]};    // 6-bit window
-                MODE_FP8:  packed[i] = normalized[i];                   // Full 12-bit
-                MODE_BF16: packed[i] = normalized[i];                   // Full 12-bit
-                default:   packed[i] = normalized[i];
+                MODE_INT4: dac_packed[i] = {8'h00, normalized[i][3:0]};    // 4-bit in LSBs
+                MODE_FP4:  dac_packed[i] = {6'h00, normalized[i][5:0]};    // 6-bit window
+                MODE_FP8:  dac_packed[i] = normalized[i];                   // Full 12-bit
+                MODE_BF16: dac_packed[i] = normalized[i];                   // Full 12-bit
+                default:   dac_packed[i] = normalized[i];
             endcase
         end
     end
@@ -174,7 +177,12 @@ always_ff @(posedge clk or negedge rst_n) begin
             IDLE: begin
                 mode_active <= 1'b0;
                 pass_index  <= 2'b00;
-                if (fire || (auto_fire && queue_full)) begin
+                // Single trigger source: the one-cycle `fire` pulse. AUTO_FIRE
+                // policy (rising edge of queue_full) lives in greencoyote_pilot_regs
+                // and reaches us as that pulse — do not also level-trigger on
+                // auto_fire/queue_full here or a still-full buffer re-runs the
+                // reduction every time we return to IDLE.
+                if (fire) begin
                     mode_active <= 1'b1;
                     state       <= NORMALIZE;
                 end
@@ -190,7 +198,7 @@ always_ff @(posedge clk or negedge rst_n) begin
             // Packing is combinational — one cycle to register and load DACs
             PACK: begin
                 for (int i = 0; i < NUM_CH; i++) begin
-                    dac_data[i] <= packed[i];
+                    dac_data[i] <= dac_packed[i];
                     dac_valid[i] <= buf_full[i];    // Only valid channels
                 end
                 state <= FIRE;

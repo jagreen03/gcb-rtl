@@ -33,7 +33,7 @@ always #5 clk = ~clk;      // 100MHz — 10ns period
 // =============================================================================
 
 // AXI-Lite
-logic [5:0]  s_axi_awaddr;
+logic [7:0]  s_axi_awaddr;
 logic        s_axi_awvalid;
 logic        s_axi_awready;
 logic [31:0] s_axi_wdata;
@@ -43,7 +43,7 @@ logic        s_axi_wready;
 logic [1:0]  s_axi_bresp;
 logic        s_axi_bvalid;
 logic        s_axi_bready;
-logic [5:0]  s_axi_araddr;
+logic [7:0]  s_axi_araddr;
 logic        s_axi_arvalid;
 logic        s_axi_arready;
 logic [31:0] s_axi_rdata;
@@ -104,10 +104,56 @@ greencoyote_top dut (
 );
 
 // =============================================================================
+// Persistent ADC / photodetector model
+// Responds `adc_result` a fixed number of cycles after every dac_sync pulse
+// (covers both single-pass and the chained two-pass CAPTURE/CAPTURE2 waits).
+// =============================================================================
+
+logic [11:0] adc_result = 12'h800;   // Value the ADC returns for a conversion
+int          adc_delay  = 3;         // Cycles from dac_sync to adc_valid
+
+initial begin
+    adc_data  = 12'h000;
+    adc_valid = 1'b0;
+    forever begin
+        @(posedge clk);
+        if (dac_sync) begin
+            repeat (adc_delay) @(posedge clk);
+            adc_data  <= adc_result;
+            adc_valid <= 1'b1;
+            @(posedge clk);
+            adc_valid <= 1'b0;
+            adc_data  <= 12'h000;
+        end
+    end
+end
+
+// =============================================================================
+// Transient-event capture — buf_clear and pass_index pulse for a single cycle,
+// so latch them for the checkers. Cleared per test via clear_events().
+// =============================================================================
+
+logic [7:0] buf_clear_seen;
+logic       saw_pass1b;
+logic       saw_pass2;
+
+always @(posedge clk) begin
+    if (|buf_clear)              buf_clear_seen <= buf_clear;
+    if (dut.pass_index == 2'b01) saw_pass1b     <= 1'b1;
+    if (dut.pass_index == 2'b10) saw_pass2      <= 1'b1;
+end
+
+task clear_events();
+    buf_clear_seen = 8'h00;
+    saw_pass1b     = 1'b0;
+    saw_pass2      = 1'b0;
+endtask
+
+// =============================================================================
 // AXI-Lite write task
 // =============================================================================
 
-task axi_write(input logic [5:0] addr, input logic [31:0] data);
+task axi_write(input logic [7:0] addr, input logic [31:0] data);
     @(posedge clk);
     s_axi_awaddr  <= addr;
     s_axi_awvalid <= 1'b1;
@@ -115,11 +161,12 @@ task axi_write(input logic [5:0] addr, input logic [31:0] data);
     s_axi_wstrb   <= 4'hF;
     s_axi_wvalid  <= 1'b1;
     s_axi_bready  <= 1'b1;
-    @(posedge clk iff (s_axi_awready && s_axi_wready));
-    @(posedge clk);
+    // AW and W handshakes complete independently on this slave
+    do @(posedge clk); while (!(s_axi_awready));
     s_axi_awvalid <= 1'b0;
+    do @(posedge clk); while (!(s_axi_wready));
     s_axi_wvalid  <= 1'b0;
-    @(posedge clk iff s_axi_bvalid);
+    do @(posedge clk); while (!(s_axi_bvalid));
     @(posedge clk);
     s_axi_bready  <= 1'b0;
     $display("[%0t] AXI WRITE addr=0x%02X data=0x%08X", $time, addr, data);
@@ -129,15 +176,15 @@ endtask
 // AXI-Lite read task
 // =============================================================================
 
-task axi_read(input logic [5:0] addr, output logic [31:0] data);
+task axi_read(input logic [7:0] addr, output logic [31:0] data);
     @(posedge clk);
     s_axi_araddr  <= addr;
     s_axi_arvalid <= 1'b1;
     s_axi_rready  <= 1'b1;
-    @(posedge clk iff s_axi_arready);
+    do @(posedge clk); while (!(s_axi_arready));
     @(posedge clk);
     s_axi_arvalid <= 1'b0;
-    @(posedge clk iff s_axi_rvalid);
+    do @(posedge clk); while (!(s_axi_rvalid));
     data = s_axi_rdata;
     @(posedge clk);
     s_axi_rready  <= 1'b0;
@@ -145,17 +192,12 @@ task axi_read(input logic [5:0] addr, output logic [31:0] data);
 endtask
 
 // =============================================================================
-// ADC response model
-// Simulates photodetector + ADC returning a result after N cycles
+// ADC stimulus helper — program the value the persistent responder returns for
+// subsequent conversions (see the "Persistent ADC model" initial block above).
 // =============================================================================
 
-task adc_respond(input logic [11:0] result, input int delay_cycles);
-    repeat(delay_cycles) @(posedge clk);
-    adc_data  <= result;
-    adc_valid <= 1'b1;
-    @(posedge clk);
-    adc_valid <= 1'b0;
-    adc_data  <= 12'h000;
+task set_adc(input logic [11:0] result);
+    adc_result = result;
 endtask
 
 // =============================================================================
@@ -169,10 +211,10 @@ task initialize();
     s_axi_bready  <= 1'b0;
     s_axi_arvalid <= 1'b0;
     s_axi_rready  <= 1'b0;
-    s_axi_awaddr  <= 6'h00;
+    s_axi_awaddr  <= 8'h00;
     s_axi_wdata   <= 32'h0;
     s_axi_wstrb   <= 4'hF;
-    s_axi_araddr  <= 6'h00;
+    s_axi_araddr  <= 8'h00;
     buf_full      <= 8'h00;
     adc_data      <= 12'h000;
     adc_valid     <= 1'b0;
@@ -212,8 +254,9 @@ endtask
 // =============================================================================
 
 task tc1_auto_fire();
-    logic [31:0] rdata;
     $display("\n[%0t] === TC1: AUTO_FIRE basic ===", $time);
+    clear_events();
+    set_adc(12'h800);                  // Mid-scale ADC result
 
     // Enable AUTO_FIRE in 0x10 bit[10]
     axi_write(6'h10, 32'h0000_0400);   // AUTO_FIRE=1
@@ -228,24 +271,18 @@ task tc1_auto_fire();
     $display("[%0t] buf_full asserted 0xFF — expecting AUTO_FIRE", $time);
 
     // Wait for dac_sync without any CPU FIRE write
-    @(posedge clk iff dac_sync);
+    do @(posedge clk); while (!(dac_sync));
     $display("[%0t] PASS TC1: dac_sync asserted autonomously", $time);
 
-    // Simulate ADC response — normal result
-    fork
-        adc_respond(12'h800, 3);   // Mid-scale result
-    join_none
-
-    // Wait for fire_done
-    @(posedge clk iff interrupt);
+    // Wait for fire_done (persistent ADC model supplies the conversion result)
+    do @(posedge clk); while (!(interrupt));
     $display("[%0t] PASS TC1: interrupt asserted on fire_done", $time);
 
-    // Verify buf_clear asserted
-    @(posedge clk);
-    if (buf_clear == 8'hFF)
+    // Verify buf_clear pulsed with all channels (latched — it is a 1-cycle strobe)
+    if (buf_clear_seen == 8'hFF)
         $display("[%0t] PASS TC1: buf_clear correct 0xFF", $time);
     else
-        $display("[%0t] FAIL TC1: buf_clear = 0x%02X expected 0xFF", $time, buf_clear);
+        $display("[%0t] FAIL TC1: buf_clear_seen = 0x%02X expected 0xFF", $time, buf_clear_seen);
 
     // Clear interrupt
     axi_write(6'h14, 32'h0000_0203);  // IRQ_CLEAR=1
@@ -259,6 +296,8 @@ endtask
 
 task tc2_manual_fire();
     $display("\n[%0t] === TC2: Manual FIRE register write ===", $time);
+    clear_events();
+    set_adc(12'h700);
 
     // Disable AUTO_FIRE
     axi_write(6'h10, 32'h0000_0000);
@@ -272,14 +311,10 @@ task tc2_manual_fire();
     axi_write(6'h10, 32'h0000_0001);   // FIRE=1 self-clearing
     $display("[%0t] Manual FIRE written", $time);
 
-    @(posedge clk iff dac_sync);
+    do @(posedge clk); while (!(dac_sync));
     $display("[%0t] PASS TC2: dac_sync asserted on manual FIRE", $time);
 
-    fork
-        adc_respond(12'h700, 3);
-    join_none
-
-    @(posedge clk iff interrupt);
+    do @(posedge clk); while (!(interrupt));
     $display("[%0t] PASS TC2: interrupt on fire_done", $time);
 
     axi_write(6'h14, 32'h0000_0203);
@@ -296,6 +331,8 @@ endtask
 task tc3_14gpu_two_pass();
     logic [31:0] rdata;
     $display("\n[%0t] === TC3: 14-GPU two-pass reduction ===", $time);
+    clear_events();
+    set_adc(12'h400);
 
     axi_write(6'h10, 32'h0000_0400);   // AUTO_FIRE=1
 
@@ -304,36 +341,28 @@ task tc3_14gpu_two_pass();
         buf_data[i] <= 32'h0000_0040;
     buf_full <= 8'hFF;
 
-    @(posedge clk iff dac_sync);
+    do @(posedge clk); while (!(dac_sync));
     $display("[%0t] TC3: Pass 1a dac_sync fired", $time);
 
-    fork adc_respond(12'h400, 3); join_none
-    repeat(6) @(posedge clk);
+    // Drop to the 6-GPU remainder BEFORE Pass 1a's ADC returns, so the
+    // sequencer sees is_14gpu_mode at PASS_CHECK and chains into Pass 1b/2.
+    buf_full <= 8'h3F;   // channels 6,7 empty — 14-GPU second-pass shape
 
-    // Read pass_index — should be 01 (Pass 1b)
-    axi_read(6'h10, rdata);
-    if (rdata[3:2] == 2'b01)
-        $display("[%0t] PASS TC3: pass_index=01 Pass 1b", $time);
+    // Sequencer auto-chains PASS_CHECK -> LOAD_PASS2 -> FIRE_PASS2 -> CAPTURE2 -> DONE
+    do @(posedge clk); while (!(interrupt));
+    $display("[%0t] TC3: two-pass reduction complete (interrupt)", $time);
+
+    // pass_index must have transitioned 00 -> 01 (Pass 1b) -> 10 (Pass 2)
+    if (saw_pass1b)
+        $display("[%0t] PASS TC3: pass_index reached 01 (Pass 1b)", $time);
     else
-        $display("[%0t] FAIL TC3: pass_index=0x%01X expected 01", $time, rdata[3:2]);
+        $display("[%0t] FAIL TC3: pass_index never reached 01", $time);
 
-    // Pass 1b — only channels 0-5 full (14-GPU mode)
-    buf_full <= 8'h3F;   // channels 6,7 empty
-
-    @(posedge clk iff dac_sync);
-    $display("[%0t] TC3: Pass 1b dac_sync fired", $time);
-
-    fork adc_respond(12'h300, 3); join_none
-    repeat(6) @(posedge clk);
-
-    // Read pass_index — should be 10 (Pass 2 digital sum)
-    axi_read(6'h10, rdata);
-    if (rdata[3:2] == 2'b10)
-        $display("[%0t] PASS TC3: pass_index=10 Pass 2 complete", $time);
+    if (saw_pass2)
+        $display("[%0t] PASS TC3: pass_index reached 10 (Pass 2 digital sum)", $time);
     else
-        $display("[%0t] FAIL TC3: pass_index=0x%01X expected 10", $time, rdata[3:2]);
+        $display("[%0t] FAIL TC3: pass_index never reached 10", $time);
 
-    @(posedge clk iff interrupt);
     $display("[%0t] PASS TC3: fire_done interrupt on two-pass completion", $time);
 
     axi_write(6'h14, 32'h0000_0203);
@@ -350,6 +379,8 @@ endtask
 task tc4_cal_err_injection();
     logic [31:0] rdata;
     $display("\n[%0t] === TC4: cal_err sticky bit injection ===", $time);
+    clear_events();
+    set_adc(12'hF80);                  // Above ADC_CLIP_THRESH (0xF00)
 
     axi_write(6'h10, 32'h0000_0400);
 
@@ -357,12 +388,12 @@ task tc4_cal_err_injection();
         buf_data[i] <= 32'h0000_00FF;
     buf_full <= 8'hFF;
 
-    @(posedge clk iff dac_sync);
-    $display("[%0t] TC4: dac_sync fired — injecting clip ADC value", $time);
+    do @(posedge clk); while (!(dac_sync));
+    $display("[%0t] TC4: dac_sync fired — clip ADC value armed", $time);
 
-    // Inject ADC value above clip threshold 0xF00
-    fork adc_respond(12'hF80, 2); join_none
-    repeat(5) @(posedge clk);
+    // Let the reduction capture the clipped conversion
+    do @(posedge clk); while (!(interrupt));
+    repeat(2) @(posedge clk);
 
     // Read 0x10 — check cal_err bit[8]
     axi_read(6'h10, rdata);
@@ -457,6 +488,8 @@ endtask
 task tc7_irq_flow();
     logic [31:0] rdata;
     $display("\n[%0t] === TC7: IRQ flow end to end ===", $time);
+    clear_events();
+    set_adc(12'h600);
 
     axi_write(6'h10, 32'h0000_0400);
 
@@ -464,11 +497,10 @@ task tc7_irq_flow();
         buf_data[i] <= 32'h0000_0055;
     buf_full <= 8'hFF;
 
-    @(posedge clk iff dac_sync);
-    fork adc_respond(12'h600, 3); join_none
+    do @(posedge clk); while (!(dac_sync));
 
     // Verify interrupt asserts
-    @(posedge clk iff interrupt);
+    do @(posedge clk); while (!(interrupt));
     $display("[%0t] PASS TC7: interrupt asserted", $time);
 
     // Read IRQ_STATUS bit[8] in 0x14

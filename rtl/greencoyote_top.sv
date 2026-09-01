@@ -21,7 +21,7 @@ module greencoyote_top (
     input  logic        peripheral_aresetn,
 
     // AXI-Lite Slave Interface — from Alveo U55C Vitis shell
-    input  logic [5:0]  s_axi_awaddr,
+    input  logic [7:0]  s_axi_awaddr,
     input  logic        s_axi_awvalid,
     output logic        s_axi_awready,
     input  logic [31:0] s_axi_wdata,
@@ -31,7 +31,7 @@ module greencoyote_top (
     output logic [1:0]  s_axi_bresp,
     output logic        s_axi_bvalid,
     input  logic        s_axi_bready,
-    input  logic [5:0]  s_axi_araddr,
+    input  logic [7:0]  s_axi_araddr,
     input  logic        s_axi_arvalid,
     output logic        s_axi_arready,
     output logic [31:0] s_axi_rdata,
@@ -61,7 +61,7 @@ module greencoyote_top (
 // Internal wires — AXI wrapper to pilot_regs
 // =============================================================================
 
-logic [5:0]  mmio_addr;
+logic [7:0]  mmio_addr;
 logic [31:0] mmio_wdata;
 logic        mmio_we;
 logic        mmio_re;
