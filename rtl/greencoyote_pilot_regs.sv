@@ -63,22 +63,22 @@ module greencoyote_pilot_regs #(
     output reg  [31:0]  mmio_rdata,
 
     // Precision mode outputs to DAC/ADC pipeline
-    output reg  [2:0]   mode_sel,       // 000=INT4 001=FP4 010=FP8 011=BF16
-    output reg  [1:0]   noise_headroom,
-    output reg  [1:0]   sat_guard,
+    output wire [2:0]   mode_sel,       // 000=INT4 001=FP4 010=FP8 011=BF16
+    output wire [1:0]   noise_headroom,
+    output wire [1:0]   sat_guard,
 
     // Calibration outputs
-    output reg  [11:0]  dark_offset,
-    output reg  [11:0]  gain_trim_global,
-    output reg          cal_valid,
-    output reg          cal_lock,
+    output wire [11:0]  dark_offset,
+    output wire [11:0]  gain_trim_global,
+    output wire         cal_valid,
+    output wire         cal_lock,
 
     // Per-channel gain trim outputs
-    output reg  [7:0]   trim_ch [0:7],
+    output wire [7:0]   trim_ch [0:7],
 
     // Reduction control outputs
-    output reg          fire,            // pulses one cycle
-    output reg          auto_fire,
+    output wire         fire,            // pulses one cycle
+    output wire         auto_fire,
 
     // Reduction status inputs
     input  wire         mode_active,
@@ -89,23 +89,23 @@ module greencoyote_pilot_regs #(
     input  wire         queue_full,
 
     // Interrupt output to host CPU
-    output reg          irq_out,
+    output wire         irq_out,
 
     // Crossbar routing outputs to optical switch
     // Each port_dest field: 000-110=route to GPU N, 111=broadcast, 110=reduce, 101=pipeline-next
-    output reg  [2:0]   xbar_port_dest [0:7],  // Destination per input port
-    output reg  [1:0]   xbar_mode,             // 00=tensor 01=pipeline 10=moe 11=custom
-    output reg          xbar_update,            // Pulses one cycle when routing changes
+    output wire [2:0]   xbar_port_dest [0:7],  // Destination per input port
+    output wire [1:0]   xbar_mode,             // 00=tensor 01=pipeline 10=moe 11=custom
+    output wire         xbar_update,            // Pulses one cycle when routing changes
     input  wire         xbar_ready,             // Switch confirms new routing applied
 
     // Training mode outputs to Learning Appliance
-    output reg          train_mode,             // 0=inference 1=LoRA adaptation enabled
-    output reg          dac_freeze,             // 1=freeze sidecar DACs during forward pass
-    output reg          sidecar_enable,         // 1=sidecar outputs active in MMI combiner
-    output reg  [2:0]   lora_rank,              // Encoded rank
-    output reg  [15:0]  alpha_scaled,           // α/r as Q8.8 fixed-point
-    output reg  [15:0]  lora_tile_row,          // Current sidecar DAC row
-    output reg  [15:0]  lora_tile_col,          // Current sidecar DAC column
+    output wire         train_mode,             // 0=inference 1=LoRA adaptation enabled
+    output wire         dac_freeze,             // 1=freeze sidecar DACs during forward pass
+    output wire         sidecar_enable,         // 1=sidecar outputs active in MMI combiner
+    output wire [2:0]   lora_rank,              // Encoded rank
+    output wire [15:0]  alpha_scaled,           // α/r as Q8.8 fixed-point
+    output wire [15:0]  lora_tile_row,          // Current sidecar DAC row
+    output wire [15:0]  lora_tile_col,          // Current sidecar DAC column
 
     // Training mode status inputs from Learning Appliance
     input  wire         update_pending,         // Gradient update waiting for idle window
@@ -120,24 +120,24 @@ module greencoyote_pilot_regs #(
     input  wire         grad_reduce_done,       // Optical gradient all-reduce complete
 
     // Scaled learning outputs
-    output reg  [9:0]   cell_count,             // Total Training Cells in fabric
-    output reg          grad_reduce_en,         // Enable optical gradient all-reduce
-    output reg          grad_reduce_fire,       // Trigger gradient reduction
-    output reg          auto_grad_reduce,       // Fire automatically when all cells ready
-    output reg  [23:0]  grad_scale,             // Global gradient scaling Q8.16
-    output reg  [1:0]   n_spi_buses,            // Parallel SPI buses per cell
-    output reg  [15:0]  spi_clk_div,            // SPI clock divider
+    output wire [9:0]   cell_count,             // Total Training Cells in fabric
+    output wire         grad_reduce_en,         // Enable optical gradient all-reduce
+    output wire         grad_reduce_fire,       // Trigger gradient reduction
+    output wire         auto_grad_reduce,       // Fire automatically when all cells ready
+    output wire [23:0]  grad_scale,             // Global gradient scaling Q8.16
+    output wire [1:0]   n_spi_buses,            // Parallel SPI buses per cell
+    output wire [15:0]  spi_clk_div,            // SPI clock divider
 
     // ISA execution outputs
-    output reg          exec_start,             // Begin program execution
-    output reg          exec_stop,              // Halt after current instruction
-    output reg          exec_reset,             // Reset PC to 0
-    output reg          exec_step,              // Single-step mode
-    output reg  [11:0]  bram_wr_addr,           // BRAM write address
-    output reg  [31:0]  bram_wr_data_lo,        // BRAM write data low 32 bits
-    output reg  [31:0]  bram_wr_data_hi,        // BRAM write data high 32 bits
-    output reg          bram_wr_en,             // BRAM write enable pulse
-    output reg  [15:0]  lc_init [0:3],          // Loop counter initial values
+    output wire         exec_start,             // Begin program execution
+    output wire         exec_stop,              // Halt after current instruction
+    output wire         exec_reset,             // Reset PC to 0
+    output wire         exec_step,              // Single-step mode
+    output wire [11:0]  bram_wr_addr,           // BRAM write address
+    output wire [31:0]  bram_wr_data_lo,        // BRAM write data low 32 bits
+    output wire [31:0]  bram_wr_data_hi,        // BRAM write data high 32 bits
+    output wire         bram_wr_en,             // BRAM write enable pulse
+    output wire [15:0]  lc_init [0:3],          // Loop counter initial values
 
     // ISA execution status inputs
     input  wire         exec_running,           // Interpreter active
@@ -164,9 +164,9 @@ module greencoyote_pilot_regs #(
     input  wire [11:0]  snap_pc_last,           // PC of most recent snapshot
 
     // Snapshot control outputs
-    output reg          rollback_en,            // Enable automatic rollback
-    output reg  [7:0]   rollback_limit,         // Max rollbacks before systemic fault
-    output reg          fault_irq_en,           // IRQ on any fault
+    output wire         rollback_en,            // Enable automatic rollback
+    output wire [7:0]   rollback_limit,         // Max rollbacks before systemic fault
+    output wire         fault_irq_en,           // IRQ on any fault
 
     // Fault log inputs
     input  wire [3:0]   fault_cause,            // Last fault cause
@@ -180,14 +180,14 @@ module greencoyote_pilot_regs #(
     input  wire [7:0]   snap_count,             // Total snapshots taken
 
     // OS task management outputs
-    output reg  [3:0]   active_tid,             // Currently selected TID for status reads
-    output reg  [3:0]   target_tid,             // TID for next CONTEXT_SWITCH
-    output reg          shutdown_init,          // Initiate ordered shutdown
-    output reg          emergency_shutdown_sw,  // Software emergency shutdown
-    output reg          flush_ombs,             // Include OMB flush in shutdown
-    output reg          irq_before_power,       // IRQ before POWER_OFF
-    output reg  [11:0]  shutdown_timeout_ms,    // Timeout for TID snapshot collection
-    output reg  [8:0]   tile_select,            // Tile index for allocation map query
+    output wire [3:0]   active_tid,             // Currently selected TID for status reads
+    output wire [3:0]   target_tid,             // TID for next CONTEXT_SWITCH
+    output wire         shutdown_init,          // Initiate ordered shutdown
+    output wire         emergency_shutdown_sw,  // Software emergency shutdown
+    output wire         flush_ombs,             // Include OMB flush in shutdown
+    output wire         irq_before_power,       // IRQ before POWER_OFF
+    output wire [11:0]  shutdown_timeout_ms,    // Timeout for TID snapshot collection
+    output wire [8:0]   tile_select,            // Tile index for allocation map query
 
     // OS task management status inputs
     input  wire [3:0]   task_count,             // Number of allocated TIDs
@@ -411,9 +411,15 @@ always @(posedge clk or negedge rst_n) begin
 
         // Auto-clear FIRE pulse after one cycle
         r_fire_pulse       <= 1'b0;
+        r_bram_wr_en       <= 1'b0;   // BRAM write strobe — one cycle (set on a 0x6C write)
         r_grad_reduce_fire <= 1'b0;
         // Auto-clear crossbar update strobe after one cycle
         r_xbar_update <= 1'b0;
+        // EXEC_START/STOP/RESET/STEP (0x60) — one-cycle strobes, not level registers
+        r_exec_start  <= 1'b0;
+        r_exec_stop   <= 1'b0;
+        r_exec_reset  <= 1'b0;
+        r_exec_step   <= 1'b0;
 
         // AUTO_GRAD_REDUCE — fire gradient reduction when all cells ready
         if (r_auto_grad_reduce && r_grad_reduce_en &&
@@ -802,13 +808,14 @@ always @(posedge clk) begin
                                    snap_log_size,    // [23:12]
                                    snap_log_base};   // [11:0]
 
-            ADDR_TASK_ALLOC_CTRL: mmio_rdata <= {tid_active_mask,  // [31:16]
+            ADDR_TASK_ALLOC_CTRL: mmio_rdata <= {tid_active_mask,       // [31:16]
+                                   1'b0,                  // [15] SHUTDOWN_ACK write-only, reads 0
                                    shutdown_ready_status, // [14]
-                                   switch_active,    // [13]
-                                   alloc_conflict,   // [12]
-                                   task_count,       // [11:8]
-                                   r_target_tid,     // [7:4]
-                                   r_active_tid};    // [3:0]
+                                   switch_active,         // [13]
+                                   alloc_conflict,        // [12]
+                                   task_count,            // [11:8]
+                                   r_target_tid,          // [7:4]
+                                   r_active_tid};         // [3:0]
 
             ADDR_TID_STATUS: mmio_rdata <= {3'h0,
                                    tid_anchor_valid, // [28]
@@ -817,10 +824,10 @@ always @(posedge clk) begin
                                    tid_priority,     // [11:8]
                                    tid_state};       // [7:0]
 
-            ADDR_TILE_ALLOC_MAP: mmio_rdata <= {22'h0,
-                                   tile_allocated,   // [9]
-                                   tile_tid,         // [8:5] — padded
-                                   r_tile_select};   // [8:0]
+            ADDR_TILE_ALLOC_MAP: mmio_rdata <= {18'h0,           // [31:14]
+                                   tile_allocated,  // [13]
+                                   tile_tid,        // [12:9]
+                                   r_tile_select};  // [8:0]
 
             ADDR_TILE_SELECT: mmio_rdata <= {23'h0, r_tile_select};
 
