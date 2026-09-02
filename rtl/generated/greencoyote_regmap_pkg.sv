@@ -7,7 +7,7 @@
 
 package greencoyote_regmap_pkg;
 
-    localparam string MAP_VERSION = "0.3.0";
+    localparam MAP_VERSION = "0.3.0";
     localparam int    ADDR_WIDTH  = 8;
     localparam logic [31:0] UNMAPPED_READ = 32'hDEADBEEF;
 

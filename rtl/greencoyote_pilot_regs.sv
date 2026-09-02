@@ -56,7 +56,7 @@ module greencoyote_pilot_regs #(
     input  wire         rst_n,
 
     // Host CPU MMIO interface (AXI-Lite style)
-    input  wire [7:0]   mmio_addr,      // 8-bit byte address covers 0x00-0xFC (map spans 0x00-0xA8)
+    input  wire [(greencoyote_regmap_pkg::ADDR_WIDTH-1):0] mmio_addr,  // width from registers.yaml (map spans 0x00-0xA8)
     input  wire [31:0]  mmio_wdata,
     input  wire         mmio_we,
     input  wire         mmio_re,
@@ -209,6 +209,9 @@ module greencoyote_pilot_regs #(
     input  wire         all_tids_snapshotted,   // All TIDs have SNAPSHOT_READY
     input  wire         omb_flush_done          // OMB forensics flushed
 );
+
+// Generated address map / constants (registers.yaml -> regen.py)
+import greencoyote_regmap_pkg::*;
 
 // =============================================================================
 // Internal registers
@@ -421,14 +424,14 @@ always @(posedge clk or negedge rst_n) begin
             case (mmio_addr)
 
                 // 0x00 Precision Mode Configuration
-                8'h00: begin
+                ADDR_PRECISION_MODE: begin
                     r_mode_sel       <= mmio_wdata[2:0];
                     r_noise_headroom <= mmio_wdata[4:3];
                     r_sat_guard      <= mmio_wdata[6:5];
                 end
 
                 // 0x04 Global Calibration
-                8'h04: begin
+                ADDR_GLOBAL_CAL: begin
                     // Payload is blocked only while the lock is held AND this
                     // write keeps it held. A write that clears CAL_LOCK[25] also
                     // lands its own calibration payload (unlock-and-update).
@@ -441,7 +444,7 @@ always @(posedge clk or negedge rst_n) begin
                 end
 
                 // 0x08 Channel Gain Trim 0-3
-                8'h08: begin
+                ADDR_CH_GAIN_TRIM_LO: begin
                     r_trim_ch0 <= mmio_wdata[7:0];
                     r_trim_ch1 <= mmio_wdata[15:8];
                     r_trim_ch2 <= mmio_wdata[23:16];
@@ -449,7 +452,7 @@ always @(posedge clk or negedge rst_n) begin
                 end
 
                 // 0x0C Channel Gain Trim 4-7
-                8'h0C: begin
+                ADDR_CH_GAIN_TRIM_HI: begin
                     r_trim_ch4 <= mmio_wdata[7:0];
                     r_trim_ch5 <= mmio_wdata[15:8];
                     r_trim_ch6 <= mmio_wdata[23:16];
@@ -457,14 +460,14 @@ always @(posedge clk or negedge rst_n) begin
                 end
 
                 // 0x10 Reduction Control
-                8'h10: begin
+                ADDR_REDUCTION_CTRL: begin
                     if (mmio_wdata[0])    // FIRE bit — self-clearing
                         r_fire_pulse <= 1'b1;
                     r_auto_fire <= mmio_wdata[10];
                 end
 
                 // 0x14 Interrupt Control
-                8'h14: begin
+                ADDR_IRQ_CTRL: begin
                     r_irq_en            <= mmio_wdata[0];
                     r_irq_fire_done_en  <= mmio_wdata[1];
                     r_irq_cal_err_en    <= mmio_wdata[2];
@@ -477,7 +480,7 @@ always @(posedge clk or negedge rst_n) begin
                 // 0x18 Crossbar Routing Low — ports 0-3
                 // [2:0]=port0 [5:3]=port1 [8:6]=port2 [11:9]=port3
                 // Dest encoding: 000-110=GPU N, 111=broadcast, 110=reduce stage, 101=pipeline-next
-                8'h18: begin
+                ADDR_XBAR_ROUTE_LO: begin
                     r_xbar_dest0  <= mmio_wdata[2:0];
                     r_xbar_dest1  <= mmio_wdata[5:3];
                     r_xbar_dest2  <= mmio_wdata[8:6];
@@ -486,7 +489,7 @@ always @(posedge clk or negedge rst_n) begin
                 end
 
                 // 0x1C Crossbar Routing High — ports 4-7
-                8'h1C: begin
+                ADDR_XBAR_ROUTE_HI: begin
                     r_xbar_dest4  <= mmio_wdata[2:0];
                     r_xbar_dest5  <= mmio_wdata[5:3];
                     r_xbar_dest6  <= mmio_wdata[8:6];
@@ -496,7 +499,7 @@ always @(posedge clk or negedge rst_n) begin
 
                 // 0x20 Crossbar Mode and Status
                 // [1:0]=XBAR_MODE 00=tensor 01=pipeline 10=moe 11=custom
-                8'h20: begin
+                ADDR_XBAR_MODE_STATUS: begin
                     r_xbar_mode   <= mmio_wdata[1:0];
                     r_xbar_update <= 1'b1;
                 end
@@ -504,7 +507,7 @@ always @(posedge clk or negedge rst_n) begin
                 // 0x24 Training Mode Control
                 // [0]=TRAIN_MODE [1]=DAC_FREEZE [4]=SIDECAR_ENABLE
                 // [7:5]=LORA_RANK [23:8]=ALPHA_SCALED
-                8'h24: begin
+                ADDR_TRAIN_CTRL: begin
                     r_train_mode     <= mmio_wdata[0];
                     r_dac_freeze     <= mmio_wdata[1];
                     r_sidecar_enable <= mmio_wdata[4];
@@ -513,20 +516,20 @@ always @(posedge clk or negedge rst_n) begin
                 end
 
                 // 0x2C LoRA Tile Address
-                8'h2C: begin
+                ADDR_LORA_TILE_ADDR: begin
                     r_lora_tile_row <= mmio_wdata[15:0];
                     r_lora_tile_col <= mmio_wdata[31:16];
                 end
 
                 // 0x30 Cell Count (host writes total cell count at init)
-                8'h30: begin
+                ADDR_CELL_COUNT_SYNC: begin
                     r_cell_count <= mmio_wdata[9:0];
                 end
 
                 // 0x34 Gradient All-Reduce Control
                 // [0]=GRAD_REDUCE_EN [1]=GRAD_REDUCE_FIRE(self-clear)
                 // [2]=AUTO_GRAD_REDUCE [31:8]=GRAD_SCALE Q8.16
-                8'h34: begin
+                ADDR_GRAD_REDUCE_CTRL: begin
                     r_grad_reduce_en   <= mmio_wdata[0];
                     if (mmio_wdata[1])
                         r_grad_reduce_fire <= 1'b1; // Self-clearing
@@ -536,14 +539,14 @@ always @(posedge clk or negedge rst_n) begin
 
                 // 0x38 SPI Bus Configuration
                 // [1:0]=N_SPI_BUSES [23:8]=SPI_CLK_DIV
-                8'h38: begin
+                ADDR_SPI_CFG: begin
                     r_n_spi_buses  <= mmio_wdata[1:0];
                     r_spi_clk_div  <= mmio_wdata[23:8];
                 end
 
                 // 0x60 Execution Control
                 // [0]=EXEC_START [1]=EXEC_STOP [2]=EXEC_RESET [3]=EXEC_STEP
-                8'h60: begin
+                ADDR_EXEC_CTRL: begin
                     r_exec_start <= mmio_wdata[0];
                     r_exec_stop  <= mmio_wdata[1];
                     r_exec_reset <= mmio_wdata[2];
@@ -551,39 +554,39 @@ always @(posedge clk or negedge rst_n) begin
                 end
 
                 // 0x64 BRAM Write Address
-                8'h64: begin
+                ADDR_BRAM_WR_ADDR: begin
                     r_bram_wr_addr <= mmio_wdata[11:0];
                     r_bram_wr_en   <= 1'b0; // Clear — wait for 0x6C write
                 end
 
                 // 0x68 BRAM Write Data Low
-                8'h68: begin
+                ADDR_BRAM_WR_DATA_LO: begin
                     r_bram_wr_data_lo <= mmio_wdata;
                     r_bram_wr_en      <= 1'b0;
                 end
 
                 // 0x6C BRAM Write Data High — triggers BRAM write
-                8'h6C: begin
+                ADDR_BRAM_WR_DATA_HI: begin
                     r_bram_wr_data_hi <= mmio_wdata;
                     r_bram_wr_en      <= 1'b1; // Pulse — write assembled instruction
                     r_bram_wr_addr    <= r_bram_wr_addr + 1; // Auto-increment
                 end
 
                 // 0x70 Loop Counter Load Low (LC0, LC1)
-                8'h70: begin
+                ADDR_LC_LOAD_LO: begin
                     r_lc_init[0] <= mmio_wdata[15:0];
                     r_lc_init[1] <= mmio_wdata[31:16];
                 end
 
                 // 0x74 Loop Counter Load High (LC2, LC3)
-                8'h74: begin
+                ADDR_LC_LOAD_HI: begin
                     r_lc_init[2] <= mmio_wdata[15:0];
                     r_lc_init[3] <= mmio_wdata[31:16];
                 end
 
                 // 0x84 Rollback Control
                 // [29]=ROLLBACK_EN [15:8]=ROLLBACK_LIMIT [28]=FAULT_IRQ_EN
-                8'h84: begin
+                ADDR_ROLLBACK_CTRL: begin
                     r_rollback_limit <= mmio_wdata[15:8];
                     r_rollback_en    <= mmio_wdata[29];
                     r_fault_irq_en   <= mmio_wdata[28];
@@ -591,20 +594,20 @@ always @(posedge clk or negedge rst_n) begin
 
                 // 0x90 Task Allocation Control
                 // [3:0]=ACTIVE_TID [7:4]=TARGET_TID [15]=SHUTDOWN_ACK
-                8'h90: begin
+                ADDR_TASK_ALLOC_CTRL: begin
                     r_active_tid <= mmio_wdata[3:0];
                     r_target_tid <= mmio_wdata[7:4];
                 end
 
                 // 0x98 Tile Select (for allocation map query)
-                8'h9C: begin
+                ADDR_TILE_SELECT: begin
                     r_tile_select <= mmio_wdata[8:0];
                 end
 
                 // 0xA8 Shutdown Control
                 // [0]=SHUTDOWN_INIT [1]=EMERGENCY [2]=FLUSH_OMBS
                 // [3]=IRQ_BEFORE_POWER [15:4]=SHUTDOWN_TIMEOUT_MS
-                8'hA8: begin
+                ADDR_SHUTDOWN_CTRL: begin
                     r_shutdown_init        <= mmio_wdata[0];
                     r_emergency_shutdown_sw <= mmio_wdata[1];
                     r_flush_ombs           <= mmio_wdata[2];
@@ -645,29 +648,29 @@ always @(posedge clk) begin
     if (mmio_re) begin
         case (mmio_addr)
 
-            8'h00: mmio_rdata <= {24'h0,
+            ADDR_PRECISION_MODE: mmio_rdata <= {24'h0,
                                    1'b0,
                                    r_sat_guard,
                                    r_noise_headroom,
                                    r_mode_sel};
 
-            8'h04: mmio_rdata <= {6'h0,
+            ADDR_GLOBAL_CAL: mmio_rdata <= {6'h0,
                                    r_cal_lock,
                                    r_cal_valid,
                                    r_gain_trim_global,
                                    r_dark_offset};
 
-            8'h08: mmio_rdata <= {r_trim_ch3,
+            ADDR_CH_GAIN_TRIM_LO: mmio_rdata <= {r_trim_ch3,
                                    r_trim_ch2,
                                    r_trim_ch1,
                                    r_trim_ch0};
 
-            8'h0C: mmio_rdata <= {r_trim_ch7,
+            ADDR_CH_GAIN_TRIM_HI: mmio_rdata <= {r_trim_ch7,
                                    r_trim_ch6,
                                    r_trim_ch5,
                                    r_trim_ch4};
 
-            8'h10: mmio_rdata <= {21'h0,
+            ADDR_REDUCTION_CTRL: mmio_rdata <= {21'h0,
                                    r_auto_fire,      // [10]
                                    fire_done,        // [9]
                                    cal_err,          // [8]
@@ -676,7 +679,7 @@ always @(posedge clk) begin
                                    mode_active,      // [1]
                                    1'b0};            // [0] FIRE reads as 0 (self-clearing)
 
-            8'h14: mmio_rdata <= {22'h0,
+            ADDR_IRQ_CTRL: mmio_rdata <= {22'h0,
                                    r_irq_status,     // [8] read only
                                    3'h0,
                                    r_irq_pass_done_en,
@@ -685,23 +688,23 @@ always @(posedge clk) begin
                                    r_irq_fire_done_en,
                                    r_irq_en};
 
-            8'h18: mmio_rdata <= {20'h0,
+            ADDR_XBAR_ROUTE_LO: mmio_rdata <= {20'h0,
                                    r_xbar_dest3,     // [11:9]
                                    r_xbar_dest2,     // [8:6]
                                    r_xbar_dest1,     // [5:3]
                                    r_xbar_dest0};    // [2:0]
 
-            8'h1C: mmio_rdata <= {20'h0,
+            ADDR_XBAR_ROUTE_HI: mmio_rdata <= {20'h0,
                                    r_xbar_dest7,     // [11:9]
                                    r_xbar_dest6,     // [8:6]
                                    r_xbar_dest5,     // [5:3]
                                    r_xbar_dest4};    // [2:0]
 
-            8'h20: mmio_rdata <= {29'h0,
+            ADDR_XBAR_MODE_STATUS: mmio_rdata <= {29'h0,
                                    xbar_ready,       // [2] switch ready status input
                                    r_xbar_mode};     // [1:0]
 
-            8'h24: mmio_rdata <= {8'h0,
+            ADDR_TRAIN_CTRL: mmio_rdata <= {8'h0,
                                    r_alpha_scaled,   // [23:8]
                                    r_lora_rank,      // [7:5]
                                    1'b0,             // [4] SIDECAR_ENABLE readback
@@ -710,33 +713,33 @@ always @(posedge clk) begin
                                    r_dac_freeze,     // [1]
                                    r_train_mode};    // [0]
 
-            8'h28: mmio_rdata <= {13'h0,
+            ADDR_GRAD_UPDATE_STATUS: mmio_rdata <= {13'h0,
                                    checksum_fail,    // [18]
                                    checksum_pass,    // [17]
                                    update_done,      // [16]
                                    channels_updated};// [15:0]
 
-            8'h2C: mmio_rdata <= {r_lora_tile_col,  // [31:16]
+            ADDR_LORA_TILE_ADDR: mmio_rdata <= {r_lora_tile_col,  // [31:16]
                                    r_lora_tile_row}; // [15:0]
 
-            8'h30: mmio_rdata <= {11'h0,
+            ADDR_CELL_COUNT_SYNC: mmio_rdata <= {11'h0,
                                    grad_reduce_done, // [21]
                                    1'b0,             // [20] ALL_CELLS_READY computed
                                    cells_ready,      // [19:10]
                                    r_cell_count};    // [9:0]
 
-            8'h34: mmio_rdata <= {r_grad_scale,      // [31:8]
+            ADDR_GRAD_REDUCE_CTRL: mmio_rdata <= {r_grad_scale,      // [31:8]
                                    5'h0,
                                    r_auto_grad_reduce,// [2]
                                    1'b0,             // [1] self-clearing
                                    r_grad_reduce_en};// [0]
 
-            8'h38: mmio_rdata <= {8'h0,
+            ADDR_SPI_CFG: mmio_rdata <= {8'h0,
                                    r_spi_clk_div,    // [23:8]
                                    6'h0,
                                    r_n_spi_buses};   // [1:0]
 
-            8'h60: mmio_rdata <= {exec_opcode,       // [31:24]
+            ADDR_EXEC_CTRL: mmio_rdata <= {exec_opcode,       // [31:24]
                                    exec_pc[11:0],    // [23:12] (padded)
                                    1'b0,
                                    exec_error,       // [10]
@@ -748,27 +751,27 @@ always @(posedge clk) begin
                                    r_exec_stop,      // [1]
                                    r_exec_start};    // [0]
 
-            8'h64: mmio_rdata <= {20'h0, r_bram_wr_addr};
+            ADDR_BRAM_WR_ADDR: mmio_rdata <= {20'h0, r_bram_wr_addr};
 
-            8'h68: mmio_rdata <= r_bram_wr_data_lo;
+            ADDR_BRAM_WR_DATA_LO: mmio_rdata <= r_bram_wr_data_lo;
 
-            8'h6C: mmio_rdata <= r_bram_wr_data_hi;
+            ADDR_BRAM_WR_DATA_HI: mmio_rdata <= r_bram_wr_data_hi;
 
-            8'h70: mmio_rdata <= {r_lc_init[1], r_lc_init[0]};
+            ADDR_LC_LOAD_LO: mmio_rdata <= {r_lc_init[1], r_lc_init[0]};
 
-            8'h74: mmio_rdata <= {r_lc_init[3], r_lc_init[2]};
+            ADDR_LC_LOAD_HI: mmio_rdata <= {r_lc_init[3], r_lc_init[2]};
 
-            8'h78: mmio_rdata <= {14'h0,
+            ADDR_SYNC_STATUS: mmio_rdata <= {14'h0,
                                    sync_timeout,     // [17]
                                    1'b0,
                                    sync_pending};    // [15:0]
 
-            8'h7C: mmio_rdata <= {8'h0,
+            ADDR_EXEC_ERR_LOG: mmio_rdata <= {8'h0,
                                    err_cause,        // [27:24] — padded in 31:28
                                    err_opcode,       // [19:12]
                                    err_pc};          // [11:0]
 
-            8'h80: mmio_rdata <= {4'h0,
+            ADDR_SNAPSHOT_STATUS: mmio_rdata <= {4'h0,
                                    snap_pc_last,     // [27:16]
                                    snap_id_last,     // [15:8]
                                    restore_fail,     // [7]
@@ -780,26 +783,26 @@ always @(posedge clk) begin
                                    snapshot_running, // [1]
                                    snapshot_ready};  // [0]
 
-            8'h84: mmio_rdata <= {2'h0,
+            ADDR_ROLLBACK_CTRL: mmio_rdata <= {2'h0,
                                    r_rollback_en,    // [29]
                                    r_fault_irq_en,   // [28]
                                    snap_pc_last,     // [27:16]
                                    r_rollback_limit, // [15:8]
                                    8'h0};            // [7:0] rollback_count from interp
 
-            8'h88: mmio_rdata <= {3'h0,
+            ADDR_FAULT_LOG: mmio_rdata <= {3'h0,
                                    r_fault_irq_en,   // [28]
                                    fault_count,      // [27:24]
                                    fault_pc,         // [23:12]
                                    fault_tile,       // [11:4]
                                    fault_cause};     // [3:0]
 
-            8'h8C: mmio_rdata <= {8'h0,
+            ADDR_SNAP_LOG_PTR: mmio_rdata <= {8'h0,
                                    snap_count,       // [23:16] — actually [7:0] padded
                                    snap_log_size,    // [23:12]
                                    snap_log_base};   // [11:0]
 
-            8'h90: mmio_rdata <= {tid_active_mask,  // [31:16]
+            ADDR_TASK_ALLOC_CTRL: mmio_rdata <= {tid_active_mask,  // [31:16]
                                    shutdown_ready_status, // [14]
                                    switch_active,    // [13]
                                    alloc_conflict,   // [12]
@@ -807,26 +810,26 @@ always @(posedge clk) begin
                                    r_target_tid,     // [7:4]
                                    r_active_tid};    // [3:0]
 
-            8'h94: mmio_rdata <= {3'h0,
+            ADDR_TID_STATUS: mmio_rdata <= {3'h0,
                                    tid_anchor_valid, // [28]
                                    tid_fault_count,  // [27:24]
                                    tid_pc,           // [23:12]
                                    tid_priority,     // [11:8]
                                    tid_state};       // [7:0]
 
-            8'h98: mmio_rdata <= {22'h0,
+            ADDR_TILE_ALLOC_MAP: mmio_rdata <= {22'h0,
                                    tile_allocated,   // [9]
                                    tile_tid,         // [8:5] — padded
                                    r_tile_select};   // [8:0]
 
-            8'h9C: mmio_rdata <= {23'h0, r_tile_select};
+            ADDR_TILE_SELECT: mmio_rdata <= {23'h0, r_tile_select};
 
-            8'hA0: mmio_rdata <= {bw_quota_mbps_status, // [31:16]
+            ADDR_RATE_LIMIT_STATUS: mmio_rdata <= {bw_quota_mbps_status, // [31:16]
                                    bw_tokens_remain};    // [15:0]
 
-            8'hA4: mmio_rdata <= sched_cycles;      // [31:0] TID0-3 fractions
+            ADDR_SCHED_STATS: mmio_rdata <= sched_cycles;      // [31:0] TID0-3 fractions
 
-            8'hA8: mmio_rdata <= {13'h0,
+            ADDR_SHUTDOWN_CTRL: mmio_rdata <= {13'h0,
                                    omb_flush_done,        // [18]
                                    all_tids_snapshotted,  // [17]
                                    power_off_assert,      // [16]
@@ -836,7 +839,7 @@ always @(posedge clk) begin
                                    r_emergency_shutdown_sw,// [1]
                                    r_shutdown_init};      // [0]
 
-            default: mmio_rdata <= 32'hDEADBEEF;    // Unmapped address sentinel
+            default: mmio_rdata <= UNMAPPED_READ;   // Unmapped address sentinel (registers.yaml)
 
         endcase
     end
