@@ -25,8 +25,10 @@ that a FAIL. `.github/workflows/integration-tb.yml` runs `ci.sh` on
 
 Individual runners: `bash tb/run_convert_tb.sh` (Icarus, currently
 `checks=1800084 errors=0`), `bash tb/run_shim_tb.sh` (Verilator ≥ 5). The
-full-shim test has not been executed in the Icarus-only authoring environment —
-reviewed-not-executed until CI or the Vortex flow runs it.
+full-shim test runs green in the GitHub Actions `ubuntu-24.04` job
+(`shim-lint` + `shim-tb` PASS: 1500 records under random `TREADY`, 8704
+`M_AXIS_CS` beats, 0 scoreboard errors); it is not run in the Icarus-only
+local authoring environment, which lacks SV interface-port support.
 
 **Status:** draft. Compile and check against the chosen `VX_CFG_*` set using the
 SVA + directed test in `vortex_integration_notes.md` §8.4 before wiring the shim.
