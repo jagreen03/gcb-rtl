@@ -11,13 +11,17 @@ implements; **never synthesised into the pilot** — `scripts/build.tcl` globs o
 | `VX_tcu_q1714_convert_pkg.sv` | Dependency-free package holding the bit-exact fp32/int32 → Q17.14 arithmetic (`conv_word`). One source of truth for the shim and the testbench. | — |
 | `VX_tcu_shim_q1714.sv` | Consumes the tag wrapper's `result_if` + `is_tile_final` + `fmt_d`; converts each PE word (via `conv_word`) to Q17.14 two's-complement with rne rounding, saturation, and `nan_inf` / `clamp` flags; serialises `NUM_LANES` beats per tile-final record onto one `M_AXIS_CS` AXI4-Stream master. | `gcb-spec/carry_save_streaming_contract.md` §4.1–§4.2, §6; `gcb-spec/vortex_integration_notes.md` §5 |
 | `tb/tb_VX_tcu_q1714_convert.sv` | Standalone bit-exact test: `conv_word` vs. an independent real/longint reference model (directed corners + ~1.8M randomized vectors, RNE and TRUNC). `tb/run_convert_tb.sh` (Icarus ≥ 11). | — |
+| `tb/tb_VX_tcu_shim_q1714.sv` | Full-shim TB: `result_if` driver + `M_AXIS_CS` sink with random `TREADY` backpressure + ring-buffer scoreboard. Checks per tile-final record: exactly `NUM_LANES` beats, `TDATA` == golden `conv_word`, `TUSER` = `{nan,ovf,lane}`, `TLAST` last-only, `TID`/`TKEEP`, in order; non-final records emit **zero** beats; `result_if.ready` low mid-record. `tb/run_shim_tb.sh` — **Verilator ≥ 5** (Vortex's sim; Icarus 11 has no interface-port support). `tb/stubs/` holds minimal `VX_define.vh` / `VX_result_if` / `VX_fifo_queue` / `VX_*_pkg`. | `gcb-spec/carry_save_streaming_contract.md` §6 |
 
 **Wiring:** `VX_tcu_core` → `VX_tcu_tilefinal_tag` → `VX_tcu_shim_q1714` →
 `M_AXIS_CS` → (pilot) per-lane async FIFO. The tag wrapper's `result_if` still
 feeds `VX_lane_gather` / `commit_if` unchanged — the shim consumes a copy.
 
 Run the conversion test: `bash tb/run_convert_tb.sh` (currently
-`checks=1800084 errors=0`).
+`checks=1800084 errors=0`, Icarus). The full-shim test
+(`bash tb/run_shim_tb.sh`) needs Verilator ≥ 5 and has not been run in the
+authoring environment (Icarus-only) — treat it as reviewed-not-executed until
+the Vortex flow runs it.
 
 **Status:** draft. Compile and check against the chosen `VX_CFG_*` set using the
 SVA + directed test in `vortex_integration_notes.md` §8.4 before wiring the shim.
