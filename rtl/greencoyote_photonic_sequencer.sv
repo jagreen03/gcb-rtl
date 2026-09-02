@@ -44,7 +44,8 @@ module greencoyote_photonic_sequencer (
 
     // --- ADC PHY Interface ---
     input  logic [11:0] adc_data,               // 12-bit ADC result
-    input  logic        adc_valid               // ADC conversion complete
+    input  logic        adc_valid,              // ADC conversion complete
+    input  logic        conv_fault              // ADC conversion fault (1-cycle, with adc_valid)
 );
 
 // =============================================================================
@@ -109,18 +110,23 @@ logic [19:0] trimmed [0:7];
 
 (* ASYNC_REG = "TRUE" *) logic        adc_valid_sync_meta, adc_valid_sync;
 (* ASYNC_REG = "TRUE" *) logic [11:0] adc_data_sync_meta,  adc_data_sync;
+(* ASYNC_REG = "TRUE" *) logic        conv_fault_sync_meta, conv_fault_sync;
 
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-        adc_valid_sync_meta <= 1'b0;
-        adc_valid_sync      <= 1'b0;
-        adc_data_sync_meta  <= 12'h000;
-        adc_data_sync       <= 12'h000;
+        adc_valid_sync_meta  <= 1'b0;
+        adc_valid_sync       <= 1'b0;
+        adc_data_sync_meta   <= 12'h000;
+        adc_data_sync        <= 12'h000;
+        conv_fault_sync_meta <= 1'b0;
+        conv_fault_sync      <= 1'b0;
     end else begin
-        adc_valid_sync_meta <= adc_valid;
-        adc_valid_sync      <= adc_valid_sync_meta;
-        adc_data_sync_meta  <= adc_data;
-        adc_data_sync       <= adc_data_sync_meta;
+        adc_valid_sync_meta  <= adc_valid;
+        adc_valid_sync       <= adc_valid_sync_meta;
+        adc_data_sync_meta   <= adc_data;
+        adc_data_sync        <= adc_data_sync_meta;
+        conv_fault_sync_meta <= conv_fault;
+        conv_fault_sync      <= conv_fault_sync_meta;
     end
 end
 
@@ -244,9 +250,11 @@ always_ff @(posedge clk or negedge rst_n) begin
             // -----------------------------------------------------------------
             // Wait for ADC conversion complete (synchronized strobe)
             CAPTURE: begin
-                if (adc_valid_sync) begin
-                    // Check for ADC clip — signal integrity fault
-                    if (adc_data_sync >= ADC_CLIP_THRESH) begin
+                // Advance on a valid conversion OR a conversion fault from
+                // greencoyote_adc_if (a hung SPI frame) so the FSM cannot stall.
+                if (adc_valid_sync || conv_fault_sync) begin
+                    // ADC clip or conversion fault -> signal-integrity fault
+                    if (adc_data_sync >= ADC_CLIP_THRESH || conv_fault_sync) begin
                         cal_err <= 1'b1;
                     end
                     pass1a_result <= adc_data_sync;
@@ -287,8 +295,8 @@ always_ff @(posedge clk or negedge rst_n) begin
 
             // -----------------------------------------------------------------
             CAPTURE2: begin
-                if (adc_valid_sync) begin
-                    if (adc_data_sync >= ADC_CLIP_THRESH)
+                if (adc_valid_sync || conv_fault_sync) begin
+                    if (adc_data_sync >= ADC_CLIP_THRESH || conv_fault_sync)
                         cal_err <= 1'b1;
                     pass1b_result <= adc_data_sync;
                     // Digital Stage 2 sum — no optical needed

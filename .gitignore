@@ -11,6 +11,9 @@ build/
 *.vvp
 *.vcd
 a.out
+sim_out
+sim/__pycache__/
+__pycache__/
 
 # Vivado batch-mode scratch dropped in cwd
 clockInfo.txt

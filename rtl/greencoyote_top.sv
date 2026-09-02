@@ -54,14 +54,23 @@ module greencoyote_top (
     input  logic [7:0]  buf_full,
     output logic [7:0]  buf_clear,
 
-    // DAC PHY interface — to laser drivers
+    // Native DAC PHY — per-channel 12-bit bus to the laser drivers
     output logic [11:0] dac_data  [0:7],
     output logic [7:0]  dac_valid,
     output logic        dac_sync,
 
-    // ADC PHY interface — from photodetector
-    input  logic [11:0] adc_data,
-    input  logic        adc_valid,
+    // Parallel DAC interface — bench loopback stimulus (greencoyote_dac_if)
+    // 14-bit word + channel-select + write strobe, generic parallel-DAC timing
+    output logic [13:0] dac_p_data,
+    output logic [2:0]  dac_p_chan,
+    output logic        dac_p_clk,
+    output logic        dac_p_wr_n,
+
+    // SPI SAR ADC interface — bench loopback capture (greencoyote_adc_if)
+    output logic        adc_sclk,
+    output logic        adc_cs_n,
+    output logic        adc_mosi,
+    input  logic        adc_miso,
 
     // Interrupt to host CPU via Vitis shell
     output logic        interrupt,
@@ -169,6 +178,28 @@ logic        queue_full;
 // =============================================================================
 
 logic        irq_out;
+
+// =============================================================================
+// Internal wires — sequencer <-> bench ADC interface block
+// (adc_data / adc_valid were external PHY inputs before the SPI loopback)
+// =============================================================================
+
+logic        dac_load_done;    // greencoyote_dac_if — all channels clocked out
+logic [11:0] adc_data;         // greencoyote_adc_if -> sequencer
+logic        adc_valid;
+logic        conv_fault;
+
+// conversion_start = dac_sync delayed by DAC-load + analog-settling headroom,
+// so the SPI SAR conversion begins only once the optical value has settled.
+localparam int FIRE_TO_CONV_DLY = 4;
+logic [FIRE_TO_CONV_DLY-1:0] conv_dly;
+logic        conversion_start;
+
+always_ff @(posedge user_clk or negedge peripheral_aresetn) begin
+    if (!peripheral_aresetn) conv_dly <= '0;
+    else                     conv_dly <= {conv_dly[FIRE_TO_CONV_DLY-2:0], dac_sync};
+end
+assign conversion_start = conv_dly[FIRE_TO_CONV_DLY-1];
 
 // =============================================================================
 // Module: AXI-Lite Wrapper
@@ -392,14 +423,51 @@ greencoyote_photonic_sequencer u_sequencer (
     .buf_full           (buf_full),
     .buf_clear          (buf_clear),
 
-    // DAC PHY
+    // DAC PHY (internal — consumed by greencoyote_dac_if)
     .dac_data           (dac_data),
     .dac_valid          (dac_valid),
     .dac_sync           (dac_sync),
 
-    // ADC PHY
+    // ADC PHY (internal — driven by greencoyote_adc_if)
     .adc_data           (adc_data),
-    .adc_valid          (adc_valid)
+    .adc_valid          (adc_valid),
+    .conv_fault         (conv_fault)
+);
+
+// =============================================================================
+// Module: Parallel DAC Interface — bench loopback stimulus
+// =============================================================================
+
+greencoyote_dac_if u_dac_if (
+    .clk           (user_clk),
+    .rst_n         (peripheral_aresetn),
+    .fire          (dac_sync),
+    .trim_ch       (trim_ch),
+    .dac_p_data    (dac_p_data),
+    .dac_p_chan    (dac_p_chan),
+    .dac_p_clk     (dac_p_clk),
+    .dac_p_wr_n    (dac_p_wr_n),
+    .dac_load_done (dac_load_done)
+);
+
+// =============================================================================
+// Module: SPI SAR ADC Interface — bench loopback capture
+// =============================================================================
+
+greencoyote_adc_if #(
+    .SCLK_DIV      (2),
+    .SETTLE_CYCLES (6)
+) u_adc_if (
+    .clk              (user_clk),
+    .rst_n            (peripheral_aresetn),
+    .conversion_start (conversion_start),
+    .adc_sclk         (adc_sclk),
+    .adc_cs_n         (adc_cs_n),
+    .adc_mosi         (adc_mosi),
+    .adc_miso         (adc_miso),
+    .adc_data         (adc_data),
+    .adc_valid        (adc_valid),
+    .conv_fault       (conv_fault)
 );
 
 endmodule

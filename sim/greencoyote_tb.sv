@@ -56,14 +56,22 @@ logic [31:0] buf_data [0:7];
 logic [7:0]  buf_full;
 logic [7:0]  buf_clear;
 
-// DAC PHY
+// Native DAC PHY
 logic [11:0] dac_data [0:7];
 logic [7:0]  dac_valid;
 logic        dac_sync;
 
-// ADC PHY
-logic [11:0] adc_data;
-logic        adc_valid;
+// Parallel DAC interface — bench loopback (greencoyote_dac_if)
+logic [13:0] dac_p_data;
+logic [2:0]  dac_p_chan;
+logic        dac_p_clk;
+logic        dac_p_wr_n;
+
+// SPI SAR ADC interface — bench loopback (greencoyote_adc_if)
+logic        adc_sclk;
+logic        adc_cs_n;
+logic        adc_mosi;
+logic        adc_miso;
 
 // Interrupt
 logic        interrupt;
@@ -98,33 +106,61 @@ greencoyote_top dut (
     .dac_data           (dac_data),
     .dac_valid          (dac_valid),
     .dac_sync           (dac_sync),
-    .adc_data           (adc_data),
-    .adc_valid          (adc_valid),
+    .dac_p_data         (dac_p_data),
+    .dac_p_chan         (dac_p_chan),
+    .dac_p_clk          (dac_p_clk),
+    .dac_p_wr_n         (dac_p_wr_n),
+    .adc_sclk           (adc_sclk),
+    .adc_cs_n           (adc_cs_n),
+    .adc_mosi           (adc_mosi),
+    .adc_miso           (adc_miso),
     .interrupt          (interrupt)
 );
 
 // =============================================================================
-// Persistent ADC / photodetector model
-// Responds `adc_result` a fixed number of cycles after every dac_sync pulse
-// (covers both single-pass and the chained two-pass CAPTURE/CAPTURE2 waits).
+// SPI SAR ADC Bus Functional Model
+// Mode 0 (CPOL=0, CPHA=0). On CS falling it presents a 16-bit frame
+// {4'h0, adc_result} MSB-first on MISO; the master (greencoyote_adc_if) samples
+// on SCLK rising, so the BFM advances to the next bit on SCLK falling.
 // =============================================================================
 
-logic [11:0] adc_result = 12'h800;   // Value the ADC returns for a conversion
-int          adc_delay  = 3;         // Cycles from dac_sync to adc_valid
+logic [11:0] adc_result = 12'h800;   // Value the emulated ADC returns
+logic [15:0] miso_shift;
+
+initial adc_miso = 1'b0;
+
+always @(negedge adc_cs_n) begin
+    miso_shift = {4'h0, adc_result};
+    adc_miso   = miso_shift[15];
+end
+
+always @(negedge adc_sclk) begin
+    if (!adc_cs_n) begin
+        miso_shift = {miso_shift[14:0], 1'b0};   // shift, then present the new MSB
+        adc_miso   = miso_shift[15];
+    end
+end
+
+always @(posedge adc_cs_n) adc_miso = 1'b0;
+
+// =============================================================================
+// Parallel DAC Bus Functional Model
+// Latches the 14-bit word into per-channel capture on each dac_p_clk rising
+// edge; counts total loads. Verifies the digital DAC roundtrip.
+// =============================================================================
+
+logic [13:0] dac_cap [0:7];
+int          dac_loads;
 
 initial begin
-    adc_data  = 12'h000;
-    adc_valid = 1'b0;
-    forever begin
-        @(posedge clk);
-        if (dac_sync) begin
-            repeat (adc_delay) @(posedge clk);
-            adc_data  <= adc_result;
-            adc_valid <= 1'b1;
-            @(posedge clk);
-            adc_valid <= 1'b0;
-            adc_data  <= 12'h000;
-        end
+    dac_loads = 0;
+    for (int i = 0; i < 8; i++) dac_cap[i] = 14'h0000;
+end
+
+always @(posedge dac_p_clk) begin
+    if (!dac_p_wr_n) begin
+        dac_cap[dac_p_chan] <= dac_p_data;
+        dac_loads           <= dac_loads + 1;
     end
 end
 
@@ -216,8 +252,6 @@ task initialize();
     s_axi_wstrb   <= 4'hF;
     s_axi_araddr  <= 8'h00;
     buf_full      <= 8'h00;
-    adc_data      <= 12'h000;
-    adc_valid     <= 1'b0;
     for (int i = 0; i < 8; i++)
         buf_data[i] <= 32'h0;
     repeat(4) @(posedge clk);
@@ -533,6 +567,53 @@ task tc7_irq_flow();
 endtask
 
 // =============================================================================
+// IO roundtrip — parallel DAC + SPI SAR ADC digital path
+// Not a pilot assertion; verifies the two new bench interface blocks.
+// =============================================================================
+
+task io_roundtrip_check();
+    int   loads_before;
+    logic native_seen;
+    $display("\n[%0t] === IO: parallel DAC + SPI ADC digital roundtrip ===", $time);
+    clear_events();
+    set_adc(12'h2A5);                       // distinctive ADC value
+
+    axi_write(6'h10, 32'h0000_0000);        // AUTO_FIRE off
+    for (int i = 0; i < 8; i++)
+        buf_data[i] <= 32'h0000_0090;
+    buf_full <= 8'hFF;
+    loads_before = dac_loads;
+    native_seen  = 1'b0;
+
+    axi_write(6'h10, 32'h0000_0001);        // manual FIRE
+
+    // sample from the fire onward: catch the one-cycle native dac_valid strobe
+    // and wait for the SPI ADC master to present its result
+    do begin
+        @(posedge clk);
+        if (dac_valid == 8'hFF) native_seen = 1'b1;       // native per-channel DAC load
+    end while (!(dut.adc_valid));
+
+    if (dut.adc_data == 12'h2A5 && !dut.conv_fault)
+        $display("[%0t] PASS IO1: SPI SAR ADC roundtrip adc_data=0x%03X", $time, dut.adc_data);
+    else
+        $display("[%0t] FAIL IO1: adc_data=0x%03X conv_fault=%0b", $time, dut.adc_data, dut.conv_fault);
+
+    do @(posedge clk); while (!(interrupt));
+
+    // parallel DAC BFM must have latched a full 8-channel frame, write-strobed
+    if ((dac_loads - loads_before) == 8 && native_seen)
+        $display("[%0t] PASS IO2: parallel DAC clocked 8 channel words; native dac_valid=0xFF", $time);
+    else
+        $display("[%0t] FAIL IO2: dac_loads delta=%0d native_seen=%0b", $time,
+                 dac_loads - loads_before, native_seen);
+
+    axi_write(6'h14, 32'h0000_0203);
+    buf_full <= 8'h00;
+    repeat(4) @(posedge clk);
+endtask
+
+// =============================================================================
 // Main test sequence
 // =============================================================================
 
@@ -551,6 +632,7 @@ initial begin
     tc5_cal_lock();
     tc6_precision_switch();
     tc7_irq_flow();
+    io_roundtrip_check();
 
     repeat(10) @(posedge clk);
     $display("\n=== GreenCoyote-Bay Testbench Complete ===");

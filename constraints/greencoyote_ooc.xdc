@@ -18,12 +18,15 @@
 # Primary user clock from the Alveo U55C shell — 300 MHz (3.333 ns)
 create_clock -period 3.333 -name user_clk [get_ports user_clk]
 
-# adc_data / adc_valid arrive on the ADC conversion clock, asynchronous to
-# user_clk. greencoyote_photonic_sequencer brings them across with a 2-flop
-# synchronizer (adc_*_sync_meta -> adc_*_sync). Cut the async arc into that
-# first stage so the crossing is not timed as a real path.
-set_false_path -from [get_ports {adc_data[*] adc_valid}]
+# adc_miso returns from the SPI SAR ADC (greencoyote_adc_if is the SPI master).
+# It is clocked out by our own adc_sclk but sampled in the user_clk domain with
+# no board delay model in OOC; cut it so it is not timed as a real path. The
+# adc_if -> sequencer path (adc_data/adc_valid/conv_fault) is fully synchronous
+# and the sequencer still 2-flops it (adc_*_sync_meta -> adc_*_sync).
+set_false_path -from [get_ports adc_miso]
 
-# Register-driven slow output — give the tool a loose budget rather than
-# leaving it unconstrained in the summary.
+# Register-driven slow I/O — give the tool a loose budget rather than leaving
+# these unconstrained in the summary.
 set_output_delay -clock user_clk 0.000 [get_ports interrupt]
+set_output_delay -clock user_clk 0.000 [get_ports {dac_p_data[*] dac_p_chan[*] dac_p_clk dac_p_wr_n}]
+set_output_delay -clock user_clk 0.000 [get_ports {adc_sclk adc_cs_n adc_mosi}]
