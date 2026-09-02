@@ -44,9 +44,14 @@ K_B = 1.380_649e-23         # Boltzmann constant [J/K]
 
 @dataclass
 class CellParams:
-    # -- combiner tree --------------------------------------------------------
-    n_inputs: int = 8                     # 8:1 reduction cell
-    stage_il_db: tuple = (0.1, 0.1)       # excess loss of each MMI stage (4x1, 2x1)
+    # -- 8x8 unitary mesh, ratiometric readout ------------------------------
+    n_inputs: int = 8                     # 8:1 reduction cell (8x8 mesh)
+    mesh_il_db: float = 2.0              # global scalar insertion loss of the mesh
+    #   -- cancels in the Tap_K / Tap_0 ratio; still sets the absolute optical
+    #      power and hence the shot-noise floor.
+    mdl_db_sigma: float = 0.5            # mode-dependent-loss std [dB], per output tap
+    #   -- log-normal, independent on each tap; the residual that does NOT
+    #      cancel in the ratio (fabrication asymmetry across the mesh outputs).
 
     # -- per-channel drive -------------------------------------------------
     input_levels: int = 256              # leaf resolution: 8-bit partial sums
@@ -87,41 +92,57 @@ class StageScale:
     """Scaling constants for a cell whose per-channel input tops out at
     `chan_max` (in final-answer units). chan_max = leaf_max * 8**(stage-1)."""
     chan_max: float
-    tree_transmission: float
-    i_per_chan_unit_a: float     # photocurrent for one final-answer unit on a channel
+    mesh_transmission: float     # global scalar transmission, 10**(-mesh_il_db/10)
+    per_unit_w: float           # optical power at a tap per final-answer unit
     adc_lsb_v: float
-    value_per_code: float        # final-answer units recovered per ADC code
 
     @classmethod
     def build(cls, p: CellParams, chan_max: float) -> "StageScale":
-        il_total_db = float(np.sum(p.stage_il_db))
-        t = 10.0 ** (-il_total_db / 10.0)
-        # one final-answer unit on a channel -> this much detector current
-        i_per_unit = p.responsivity_a_w * (p.p_in_max_w / chan_max) * t
-        # full 8-channel sum -> full-scale detector current -> ADC full scale
-        i_full = i_per_unit * (p.n_inputs * chan_max) + p.dark_current_a
-        v_full = i_full * p.tia_r_f_ohm
+        t = 10.0 ** (-p.mesh_il_db / 10.0)
+        # one final-answer unit on a tap -> this much optical power (after mesh)
+        per_unit_w = (p.p_in_max_w / chan_max) * t
+        # the reference tap (Tap 0) tops out at the full-scale sum n_inputs*chan_max;
+        # size the ADC full scale to that.
+        i_ref_full = p.responsivity_a_w * per_unit_w * (p.n_inputs * chan_max) \
+                     + p.dark_current_a
+        v_full  = i_ref_full * p.tia_r_f_ohm
         adc_vfs = v_full / p.adc_fullscale_headroom
         adc_lsb = adc_vfs / (2 ** p.adc_bits)
-        value_per_code = adc_lsb / p.tia_r_f_ohm / i_per_unit
-        return cls(chan_max, t, i_per_unit, adc_lsb, value_per_code)
+        return cls(chan_max, t, per_unit_w, adc_lsb)
 
 
 # =============================================================================
 # Optical + electronic chain
 # =============================================================================
 
-def _combiner_output_power(channel_values: np.ndarray, p: CellParams,
-                           s: StageScale) -> np.ndarray:
-    """Ideal power-summing MMI tree. channel_values: (..., n_inputs) in
-    final-answer units. Returns summed optical power [W] with excess loss."""
-    p_channels = (channel_values / s.chan_max) * p.p_in_max_w
-    return p_channels.sum(axis=-1) * s.tree_transmission
+def _mesh_tap_powers(channel_values: np.ndarray, p: CellParams, s: StageScale,
+                     rng: np.random.Generator) -> tuple[np.ndarray, np.ndarray]:
+    """8x8 unitary-mesh ratiometric readout. channel_values: (M, n_inputs) in
+    final-answer units. Returns (p_ref, p_result) optical powers [W] for the two
+    detection taps of each cell:
+
+      Tap 0 (reference) : carries the full-scale reference n_inputs*chan_max
+      Tap K (result)    : carries the carry-save weighted sum
+
+    Both see the global mesh transmission (which cancels in the ratio); each
+    also gets an independent per-cell log-normal MDL factor (which does not).
+    """
+    m = channel_values.shape[0]
+    carry_save_sum = channel_values.sum(axis=-1)              # (M,) the result
+    reference      = p.n_inputs * s.chan_max                  # scalar full-scale ref
+
+    mdl_ref = 10.0 ** (rng.normal(0.0, p.mdl_db_sigma, size=m) / 10.0)
+    mdl_res = 10.0 ** (rng.normal(0.0, p.mdl_db_sigma, size=m) / 10.0)
+
+    p_ref = reference       * s.per_unit_w * mdl_ref
+    p_res = carry_save_sum  * s.per_unit_w * mdl_res
+    return p_ref, p_res
 
 
 def _detect_and_digitize(p_opt_w: np.ndarray, p: CellParams, s: StageScale,
                          rng: np.random.Generator) -> np.ndarray:
-    """Photodetector -> shot/thermal/TIA noise -> TIA -> ADC. Returns ADC codes."""
+    """One detection tap: photodetector -> shot/thermal/TIA noise -> TIA -> ADC.
+    Called once per tap (reference and result) with independent noise draws."""
     B = p.bandwidth_hz
     tau_eff = 1.0 / (2.0 * B)                      # noise-equivalent integration time
 
@@ -146,19 +167,29 @@ def _detect_and_digitize(p_opt_w: np.ndarray, p: CellParams, s: StageScale,
 
 def simulate_cell(inputs_array: np.ndarray, p: CellParams,
                   rng: np.random.Generator, chan_max: float | None = None) -> np.ndarray:
-    """Push a batch of 8-input cells through the optical + electronic chain.
+    """Push a batch of 8-input cells through the 8x8 mesh + ratiometric readout.
 
     inputs_array : (M, 8) values in final-answer units (already-summed partials).
     chan_max     : max value one channel can carry here; defaults to the leaf
                    8-bit maximum (stage 1). For stage k pass leaf_max * 8**(k-1).
     returns      : (M,) reconstructed sum estimate, in final-answer units.
+
+    Two taps, two independent shot/thermal/ADC chains:
+        normalized_result = ADC(Tap K) / ADC(Tap 0)
+        estimate          = normalized_result * (n_inputs * chan_max)
+    The global mesh loss and any common gain cancel; the MDL difference between
+    the taps and the two taps' quantisation/shot noise do not.
     """
     if chan_max is None:
         chan_max = float(p.leaf_max)
     s = StageScale.build(p, chan_max)
-    p_opt = _combiner_output_power(inputs_array, p, s)
-    code = _detect_and_digitize(p_opt, p, s, rng)
-    return code * s.value_per_code
+
+    p_ref, p_res = _mesh_tap_powers(inputs_array, p, s, rng)
+    code_ref = _detect_and_digitize(p_ref, p, s, rng)        # independent noise
+    code_res = _detect_and_digitize(p_res, p, s, rng)
+
+    ratio = code_res / np.maximum(code_ref, 1)               # ADC_TapK / ADC_Tap0
+    return ratio * (p.n_inputs * chan_max)
 
 
 # =============================================================================
@@ -214,21 +245,28 @@ def stress_test(base: CellParams, n_vectors: int = 2500) -> list[dict]:
     """Re-run the K = 4 (4096-unit) cascade under degraded physical conditions
     and check each against the 8-bit INT8-equivalent floor.
 
-      A  incoherent 8:1 combiner  -> stage_il_db (4.5, 4.5), i.e. ~9 dB total
-         (the mutually-incoherent N:1 penalty), ADC kept at 12-bit.
-      B  cheaper ADC             -> low-loss (0.1, 0.1) combiner, ADC 10-bit.
-      C  worst case              -> both the 9 dB incoherent loss and 10-bit ADC.
+    With the 8x8 ratiometric readout the failure surface has moved: the global
+    scalar mesh loss cancels in the Tap_K / Tap_0 ratio, so the surviving
+    variables are the per-tap Mode-Dependent Loss (MDL) and the ADC depth.
+
+      A  high global mesh loss   -> mesh_il_db 9.0 dB (the mutually-incoherent
+         N:1 penalty), MDL and ADC unchanged. Tests that the ratio really does
+         cancel a large common loss (only the shot-noise floor should move).
+      B  fabrication asymmetry   -> mdl_db_sigma 2.0 dB (4x the 0.5 dB default),
+         mesh loss and ADC unchanged. This is the residual the ratio CANNOT
+         cancel.
+      C  worst case              -> 9 dB mesh loss + 2.0 dB MDL + 10-bit ADC.
     """
     depth = 4
     n = base.n_inputs ** depth
     scenarios = [
-        ("baseline  (0.2 dB combiner, 12-bit ADC)", base),
-        ("A  incoherent combiner  9 dB, 12-bit ADC",
-         replace(base, stage_il_db=(4.5, 4.5))),
-        ("B  low-loss combiner, 10-bit ADC",
-         replace(base, adc_bits=10)),
-        ("C  incoherent 9 dB + 10-bit ADC  (worst case)",
-         replace(base, stage_il_db=(4.5, 4.5), adc_bits=10)),
+        ("baseline  (2 dB mesh, 0.5 dB MDL, 12-bit ADC)", base),
+        ("A  high global mesh loss 9 dB, 12-bit ADC",
+         replace(base, mesh_il_db=9.0)),
+        ("B  MDL sigma 2.0 dB, 2 dB mesh, 12-bit ADC",
+         replace(base, mdl_db_sigma=2.0)),
+        ("C  9 dB mesh + 2.0 dB MDL + 10-bit ADC  (worst)",
+         replace(base, mesh_il_db=9.0, mdl_db_sigma=2.0, adc_bits=10)),
     ]
 
     print("=" * 74)
@@ -279,7 +317,9 @@ def bench_params(adc_bits: int = 10) -> CellParams:
                   start) or 12 (target); ~50 MHz noise bandwidth
 
     The ONE parameter deliberately left at the optimistic model default is the
-    combiner insertion loss (`stage_il_db`). The bench measures it first;
+    mesh Mode-Dependent Loss (`mdl_db_sigma`): the global scalar loss cancels
+    in the ratiometric readout, so per-tap fabrication asymmetry is the residual
+    that spends margin. The bench measures the tap-to-tap balance first;
     `bench_combiner_sweep` turns that measurement into a go/no-go.
     """
     return replace(
@@ -294,70 +334,77 @@ def bench_params(adc_bits: int = 10) -> CellParams:
 
 def bench_combiner_sweep(base: CellParams,
                          depths: tuple = (1, 2, 4),
-                         il_grid_db: tuple = (0.05, 0.1, 0.2, 0.5, 1.0, 1.5,
-                                              2.0, 3.0, 4.5),
+                         mdl_grid_db: tuple = (0.0, 0.02, 0.05, 0.1, 0.2, 0.35,
+                                               0.5, 0.75, 1.0, 1.5, 2.0),
                          n_vectors: dict | None = None) -> dict:
-    """Sweep per-stage combiner insertion loss (`stage_il_db = (L, L)`) with
-    every other bench parameter fixed, and report -- for the single cell (K=1),
-    the short cascade (K=2), and the target cluster (K=4) -- the effective
-    resolution vs. loss and the loss THRESHOLD at which INT8-equivalence (8-bit
+    """Sweep the mesh Mode-Dependent-Loss std (`mdl_db_sigma`) from 0.0 to 2.0 dB
+    with every other bench parameter fixed, and report -- for the single cell
+    (K=1), the short cascade (K=2), and the target cluster (K=4) -- the effective
+    resolution vs. MDL and the MDL THRESHOLD at which INT8-equivalence (8-bit
     RMS) is lost.
 
-    That threshold is the acceptance criterion for the D3 combiner measurement:
-    the fused-fiber tree must come in under it for that depth to be feasible.
+    The global mesh insertion loss is deliberately NOT swept: it cancels
+    algebraically in the Tap_K / Tap_0 ratio. What survives is the per-tap MDL
+    difference (log-normal, combined std ~ sqrt(2)*mdl_db_sigma between the two
+    taps) plus the two taps' shot + quantisation noise.
+
+    The threshold is the acceptance criterion for the D3 mesh measurement: the
+    tap-to-tap balance (reference vs. result output) must come in under it for
+    that depth to be feasible.
     """
     if n_vectors is None:
         n_vectors = {1: 8000, 2: 3000, 3: 1200, 4: 600}
 
     print("=" * 74)
-    print(" TASK 3 BENCH -- combiner insertion-loss acceptance sweep")
+    print(" TASK 3 BENCH -- mesh Mode-Dependent-Loss (MDL) acceptance sweep")
     print("=" * 74)
     print(f"  bench config : 8x 0.1 mW O-band, 0.9 A/W PD, 2 kOhm TIA, "
           f"{base.adc_bits}-bit ADC, 50 MHz")
-    print(f"  free variable: combiner per-stage insertion loss; all else fixed")
+    print(f"  free variable: per-tap MDL sigma [dB]; global mesh loss cancels in "
+          f"the ratio")
     print(f"  eff. bits shown as  peak / RMS  (RMS is the depth-robust figure)")
     print("-" * 74)
-    hdr = f"  {'IL/stage':>9}  {'8:1 tot':>7}  " + "  ".join(
+    hdr = f"  {'MDL sigma':>9}  {'tap sprd':>8}  " + "  ".join(
         f"{'K='+str(k):>15}" for k in depths)
     print(hdr)
     print("  " + "-" * (len(hdr) - 2))
 
     curves = {k: [] for k in depths}
-    for L in il_grid_db:
-        cfg = replace(base, stage_il_db=(L, L))
+    for sig in mdl_grid_db:
+        cfg = replace(base, mdl_db_sigma=sig)
         cols = []
         for k in depths:
             n = base.n_inputs ** k
             r = simulate_cascade(n, k, cfg, np.random.default_rng(base.seed),
                                  n_vectors[k])
-            curves[k].append((L, r["eff_bits_peak"], r["eff_bits_rms"]))
+            curves[k].append((sig, r["eff_bits_peak"], r["eff_bits_rms"]))
             cols.append(f"{r['eff_bits_peak']:6.2f} /{r['eff_bits_rms']:6.2f}")
-        print(f"  {L:>6.2f} dB  {2*L:>4.1f} dB  " + "  ".join(cols))
+        print(f"  {sig:>6.2f} dB  {np.sqrt(2)*sig:>5.2f} dB  " + "  ".join(cols))
 
     print("  " + "-" * (len(hdr) - 2))
     thresholds = {}
     for k in depths:
-        pts = curves[k]                       # (L, pk, rms), L ascending, rms descending
+        pts = curves[k]                       # (sig, pk, rms), sig ascending, rms descending
         thr = None
-        for (l0, _, r0), (l1, _, r1) in zip(pts, pts[1:]):
+        for (s0, _, r0), (s1, _, r1) in zip(pts, pts[1:]):
             if r0 >= 8.0 > r1:
-                thr = l0 + (l1 - l0) * (r0 - 8.0) / (r0 - r1)
+                thr = s0 + (s1 - s0) * (r0 - 8.0) / (r0 - r1)
                 break
         thresholds[k] = thr
         best_rms, worst_rms = pts[0][2], pts[-1][2]
         if thr is None:
             if worst_rms >= 8.0:
                 print(f"  K={k}: INT8-equivalent (RMS) HOLDS across the full sweep -- "
-                      f"{best_rms:.2f} bit at 0.05 dB/stage down to {worst_rms:.2f} bit "
-                      f"at 4.5 dB/stage (fully incoherent). ~{best_rms - worst_rms:.1f} bit "
-                      f"of margin is spent by the combiner, {worst_rms - 8.0:+.2f} bit left.")
+                      f"{best_rms:.2f} bit at 0.0 dB MDL down to {worst_rms:.2f} bit "
+                      f"at 2.0 dB MDL. ~{best_rms - worst_rms:.1f} bit of margin is "
+                      f"spent by MDL, {worst_rms - 8.0:+.2f} bit left.")
             else:
                 print(f"  K={k}: below INT8-equivalent (RMS) across the whole sweep.")
         else:
-            print(f"  K={k}: INT8-equivalent (RMS) holds up to ~{thr:.2f} dB/stage "
-                  f"(~{2*thr:.1f} dB total 8:1)  <-- D3 combiner must beat this.")
+            print(f"  K={k}: INT8-equivalent (RMS) holds up to ~{thr:.2f} dB MDL sigma "
+                  f"(~{np.sqrt(2)*thr:.2f} dB tap-to-tap spread)  <-- D3 mesh must beat this.")
     print("=" * 74)
-    return {"curves": curves, "thresholds_db_per_stage": thresholds}
+    return {"curves": curves, "thresholds_db_mdl_sigma": thresholds}
 
 
 # =============================================================================
@@ -371,7 +418,8 @@ def main() -> None:
     print("=" * 74)
     print(" GreenCoyote-Bay -- cascaded optical reduction: precision vs. depth (O1)")
     print("=" * 74)
-    print(f"  cell            : 8:1 (4x1 -> 2x1), excess loss {sum(p.stage_il_db):.2f} dB")
+    print(f"  cell            : 8x8 unitary mesh, ratiometric Tap_K / Tap_0 readout; "
+          f"mesh loss {p.mesh_il_db:.1f} dB (cancels), MDL sigma {p.mdl_db_sigma:.2f} dB")
     print(f"  per-channel      : {p.input_levels}-level leaves, {p.p_in_max_w*1e3:.2f} mW full")
     print(f"  detector / TIA   : R={p.responsivity_a_w:.2f} A/W, R_f={p.tia_r_f_ohm/1e3:.1f} kOhm, "
           f"i_n={p.tia_in_noise_a_rthz*1e12:.1f} pA/rtHz, NF={p.tia_noise_figure_db:.1f} dB")
@@ -424,7 +472,7 @@ def main() -> None:
 
     stress_test(p)
     print()
-    bench_combiner_sweep(bench_params())
+    bench_combiner_sweep(bench_params(12))
 
 
 if __name__ == "__main__":
