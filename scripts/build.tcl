@@ -64,14 +64,19 @@ puts "============================================================"
 # ----------------------------------------------------------------------------
 # 1. Read sources + timing-only OOC constraints
 # ----------------------------------------------------------------------------
-set sv_files [lsort [glob -nocomplain [file join $rtl_dir *.sv]]]
+# Generated packages (registers.yaml -> regen.py) first, so modules that
+# `import greencoyote_regmap_pkg::*` elaborate.
+set pkg_files [lsort [glob -nocomplain [file join $rtl_dir generated *.sv]]]
+set sv_files  [lsort [glob -nocomplain [file join $rtl_dir *.sv]]]
 if {[llength $sv_files] == 0} {
     puts "ERROR: no .sv sources under $rtl_dir"
     exit 2
 }
-puts "\n-- reading [llength $sv_files] SystemVerilog source(s):"
-foreach f $sv_files { puts "     [file tail $f]" }
-read_verilog -sv $sv_files
+set all_sv [concat $pkg_files $sv_files]
+puts "\n-- reading [llength $pkg_files] generated package(s) + [llength $sv_files] RTL source(s):"
+foreach f $pkg_files { puts "     generated/[file tail $f]" }
+foreach f $sv_files  { puts "     [file tail $f]" }
+read_verilog -sv $all_sv
 
 if {![file exists $xdc_ooc]} {
     puts "ERROR: OOC constraints not found: $xdc_ooc"
