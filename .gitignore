@@ -11,3 +11,6 @@ build/
 *.vvp
 *.vcd
 a.out
+
+# Vivado batch-mode scratch dropped in cwd
+clockInfo.txt
