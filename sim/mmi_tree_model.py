@@ -286,8 +286,11 @@ def main() -> None:
     print(header)
     print("  " + "-" * (len(header) - 2))
 
-    # K = 1 reference (single cell) then the requested cascade depths
-    plan = [(1, 20000), (2, 6000), (3, 3000), (4, 1200)]
+    # K = 1 reference (single cell) then the cascade depths.
+    # Deeper runs use fewer Monte-Carlo vectors (8**K units each); the RMS
+    # column is the depth-robust comparison, the peak column is slightly
+    # optimistic at K = 5, 6 from the smaller sample.
+    plan = [(1, 20000), (2, 6000), (3, 3000), (4, 1200), (5, 400), (6, 120)]
     rows = []
     for depth, n_vec in plan:
         n = p.n_inputs ** depth
