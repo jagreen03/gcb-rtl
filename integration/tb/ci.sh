@@ -62,7 +62,7 @@ fi
 if have_verilator5; then
     run_stage "shim-lint (verilator)" \
         verilator --lint-only -sv --timing "${VL_WARN[@]}" \
-                  +define+SIMULATION -I stubs "${VL_SRC[@]}"
+                  +define+SIMULATION +incdir+stubs "${VL_SRC[@]}"
     run_stage "shim-tb (verilator)" bash run_shim_tb.sh
 else
     reason="Verilator >= 5 not found"

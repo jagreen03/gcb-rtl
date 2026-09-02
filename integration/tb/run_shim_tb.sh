@@ -16,7 +16,7 @@ verilator --binary --timing -j 0 \
     -Wall -Wno-DECLFILENAME -Wno-UNUSEDSIGNAL -Wno-UNUSEDPARAM \
     -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -Wno-CASEINCOMPLETE \
     +define+SIMULATION \
-    -I stubs \
+    +incdir+stubs \
     --top-module tb_VX_tcu_shim_q1714 \
     --Mdir sim_out/obj_shimtb \
     ../VX_tcu_q1714_convert_pkg.sv \
