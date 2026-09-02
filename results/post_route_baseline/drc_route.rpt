@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
 ---------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2024.2 (win64) Build 5239630 Fri Nov 08 22:35:27 MST 2024
-| Date         : Tue Sep  1 21:32:37 2026
+| Date         : Wed Sep  2 11:43:48 2026
 | Host         : JohnIdeaPadPro5 running 64-bit major release  (build 9200)
 | Command      : report_drc -file D:/R/S/H/gcb-rtl/build/reports/drc_route.rpt
 | Design       : greencoyote_top
@@ -198,14 +198,14 @@ Related violations: <none>
 
 RTSTAT-10#1 Warning
 No routable loads  
-149 net(s) have no routable loads. The problem bus(es) and/or net(s) are u_axi_lite/s_axi_rdata[31:0], u_pilot_regs/grad_reduce_fire,
-u_pilot_regs/interrupt, u_pilot_regs/sidecar_enable,
+150 net(s) have no routable loads. The problem bus(es) and/or net(s) are u_axi_lite/s_axi_rdata[31:0], u_pilot_regs/bram_wr_en,
+u_pilot_regs/grad_reduce_fire, u_pilot_regs/interrupt,
 u_sequencer/buf_clear[7:0], u_sequencer/dac_data[0][11:0],
 u_sequencer/dac_data[1][11:0], u_sequencer/dac_data[2][11:0],
 u_sequencer/dac_data[3][11:0], u_sequencer/dac_data[4][11:0],
 u_sequencer/dac_data[5][11:0], u_sequencer/dac_data[6][11:0],
 u_sequencer/dac_data[7][11:0], u_sequencer/dac_sync,
-u_sequencer/dac_valid[7:0] (the first 15 of 16 listed nets/buses).
+u_sequencer/dac_valid[7:0] (the first 15 of 17 listed).
 Related violations: <none>
 
 

@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
 -------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2024.2 (win64) Build 5239630 Fri Nov 08 22:35:27 MST 2024
-| Date             : Tue Sep  1 21:32:40 2026
+| Date             : Wed Sep  2 11:43:54 2026
 | Host             : JohnIdeaPadPro5 running 64-bit major release  (build 9200)
 | Command          : report_power -file D:/R/S/H/gcb-rtl/build/reports/power_route.rpt
 | Design           : greencoyote_top
@@ -55,13 +55,13 @@ Table of Contents
 | On-Chip        | Power (W) | Used     | Available | Utilization (%) |
 +----------------+-----------+----------+-----------+-----------------+
 | Clocks         |     0.007 |        3 |       --- |             --- |
-| CLB Logic      |     0.004 |     1431 |       --- |             --- |
-|   LUT as Logic |     0.004 |      608 |   1303680 |            0.05 |
+| CLB Logic      |     0.004 |     1444 |       --- |             --- |
+|   LUT as Logic |     0.004 |      602 |   1303680 |            0.05 |
 |   CARRY8       |    <0.001 |       25 |    162960 |            0.02 |
 |   Register     |    <0.001 |      698 |   2607360 |            0.03 |
 |   Others       |     0.000 |        8 |       --- |             --- |
-|   F7/F8 Muxes  |     0.000 |       10 |   1303680 |           <0.01 |
-| Signals        |     0.003 |     1070 |       --- |             --- |
+|   F7/F8 Muxes  |     0.000 |       24 |   1303680 |           <0.01 |
+| Signals        |     0.003 |     1053 |       --- |             --- |
 | DSPs           |     0.006 |        8 |      9024 |            0.09 |
 | Static Power   |     3.273 |          |           |                 |
 | Total          |     3.293 |          |           |                 |
