@@ -1,0 +1,35 @@
+name: integration-tb
+
+# Testbenches for gcb-rtl/integration/ (Vortex-side staging RTL):
+#   * conv_word bit-exact test        — Icarus Verilog
+#   * full-shim + M_AXIS_CS sink test  — Verilator >= 5
+# See integration/tb/ci.sh.
+
+on:
+  push:
+    paths:
+      - 'integration/**'
+      - '.github/workflows/integration-tb.yml'
+  pull_request:
+    paths:
+      - 'integration/**'
+      - '.github/workflows/integration-tb.yml'
+  workflow_dispatch:
+
+jobs:
+  testbenches:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install simulators
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends iverilog verilator
+          echo "iverilog:  $(iverilog -V 2>&1 | head -1)"
+          echo "verilator: $(verilator --version)"
+
+      - name: Run integration testbenches
+        env:
+          CI_REQUIRE_VERILATOR: "1"   # missing/old Verilator is a hard failure in CI
+        run: bash integration/tb/ci.sh

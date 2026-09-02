@@ -17,11 +17,16 @@ implements; **never synthesised into the pilot** — `scripts/build.tcl` globs o
 `M_AXIS_CS` → (pilot) per-lane async FIFO. The tag wrapper's `result_if` still
 feeds `VX_lane_gather` / `commit_if` unchanged — the shim consumes a copy.
 
-Run the conversion test: `bash tb/run_convert_tb.sh` (currently
-`checks=1800084 errors=0`, Icarus). The full-shim test
-(`bash tb/run_shim_tb.sh`) needs Verilator ≥ 5 and has not been run in the
-authoring environment (Icarus-only) — treat it as reviewed-not-executed until
-the Vortex flow runs it.
+**CI:** `bash tb/ci.sh` runs every stage and prints a summary —
+`convert-tb` (Icarus, required), `shim-lint` + `shim-tb` (Verilator ≥ 5).
+Verilator stages SKIP locally when it is absent; `CI_REQUIRE_VERILATOR=1` makes
+that a FAIL. `.github/workflows/integration-tb.yml` runs `ci.sh` on
+`integration/**` changes with both simulators installed.
+
+Individual runners: `bash tb/run_convert_tb.sh` (Icarus, currently
+`checks=1800084 errors=0`), `bash tb/run_shim_tb.sh` (Verilator ≥ 5). The
+full-shim test has not been executed in the Icarus-only authoring environment —
+reviewed-not-executed until CI or the Vortex flow runs it.
 
 **Status:** draft. Compile and check against the chosen `VX_CFG_*` set using the
 SVA + directed test in `vortex_integration_notes.md` §8.4 before wiring the shim.
