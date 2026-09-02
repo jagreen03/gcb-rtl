@@ -30,7 +30,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import numpy as np
 
 # ---- physical constants (SI) ------------------------------------------------
@@ -207,6 +207,63 @@ def simulate_cascade(total_inputs: int, depth: int, p: CellParams,
 
 
 # =============================================================================
+# Stress test -- degraded-physics scenarios at K = 4
+# =============================================================================
+
+def stress_test(base: CellParams, n_vectors: int = 2500) -> list[dict]:
+    """Re-run the K = 4 (4096-unit) cascade under degraded physical conditions
+    and check each against the 8-bit INT8-equivalent floor.
+
+      A  incoherent 8:1 combiner  -> stage_il_db (4.5, 4.5), i.e. ~9 dB total
+         (the mutually-incoherent N:1 penalty), ADC kept at 12-bit.
+      B  cheaper ADC             -> low-loss (0.1, 0.1) combiner, ADC 10-bit.
+      C  worst case              -> both the 9 dB incoherent loss and 10-bit ADC.
+    """
+    depth = 4
+    n = base.n_inputs ** depth
+    scenarios = [
+        ("baseline  (0.2 dB combiner, 12-bit ADC)", base),
+        ("A  incoherent combiner  9 dB, 12-bit ADC",
+         replace(base, stage_il_db=(4.5, 4.5))),
+        ("B  low-loss combiner, 10-bit ADC",
+         replace(base, adc_bits=10)),
+        ("C  incoherent 9 dB + 10-bit ADC  (worst case)",
+         replace(base, stage_il_db=(4.5, 4.5), adc_bits=10)),
+    ]
+
+    print("=" * 74)
+    print(" STRESS TEST -- K = 4 cascade (4096 units), degraded physics")
+    print("=" * 74)
+    hdr = (f"  {'scenario':<44}  {'MAX DEV':>9}  {'eff.bits':>8}  {'eff.bits':>8}")
+    print(hdr)
+    print(f"  {'':<44}  {'(LSB)':>9}  {'(peak)':>8}  {'(rms)':>8}")
+    print("  " + "-" * (len(hdr) - 2))
+
+    out = []
+    for label, cfg in scenarios:
+        r = simulate_cascade(n, depth, cfg, np.random.default_rng(base.seed), n_vectors)
+        r["label"] = label
+        out.append(r)
+        flag = "  <-- BELOW 8-bit floor" if r["eff_bits_peak"] < 8.0 else ""
+        print(f"  {label:<44}  {r['max_abs_error_lsb']:>9.1f}  "
+              f"{r['eff_bits_peak']:>8.2f}  {r['eff_bits_rms']:>8.2f}{flag}")
+
+    print("  " + "-" * (len(hdr) - 2))
+    crashed = [r for r in out[1:] if r["eff_bits_peak"] < 8.0]
+    if crashed:
+        names = ", ".join(r["label"].split()[0] for r in crashed)
+        print(f"  >> Degradation(s) that CRASH through the INT8-equivalent floor: {names}")
+    else:
+        print("  >> No single degradation crashes through the 8-bit floor at K = 4.")
+    tightest = min(out[1:], key=lambda r: r["eff_bits_peak"])
+    print(f"  >> Tightest degraded case: {tightest['label'].split()[0]} at "
+          f"{tightest['eff_bits_peak']:.2f} bits peak "
+          f"({tightest['eff_bits_peak'] - 8.0:+.2f} vs floor).")
+    print("=" * 74)
+    return out
+
+
+# =============================================================================
 # __main__
 # =============================================================================
 
@@ -263,6 +320,9 @@ def main() -> None:
               f"{worst['eff_bits_peak']:.2f} bits peak "
               f"({worst['eff_bits_peak'] - 8.0:+.2f} bits of margin).")
     print("=" * 74)
+    print()
+
+    stress_test(p)
 
 
 if __name__ == "__main__":
