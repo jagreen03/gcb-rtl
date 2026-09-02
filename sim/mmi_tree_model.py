@@ -264,6 +264,103 @@ def stress_test(base: CellParams, n_vectors: int = 2500) -> list[dict]:
 
 
 # =============================================================================
+# Task 3 bench configuration + combiner-loss acceptance sweep
+# =============================================================================
+
+def bench_params(adc_bits: int = 10) -> CellParams:
+    """CellParams for the Task 3 discrete-component reduction cell, matching
+    gcb-spec/bench_emulation_parameters.md.
+
+      lasers    : 8x O-band (~1310 nm) DFB/FP, 0.1 mW/channel, 8-bit modulation,
+                  TEC-held at 300 K
+      detector  : O-band InGaAs PIN, 0.9 A/W, 5 nA dark
+      TIA       : 2 kOhm, 3 pA/rtHz input noise, 3 dB NF, ~1.5 V full-scale swing
+      ADC       : commercial eval board -- adc_bits = 10 (conservative bench
+                  start) or 12 (target); ~50 MHz noise bandwidth
+
+    The ONE parameter deliberately left at the optimistic model default is the
+    combiner insertion loss (`stage_il_db`). The bench measures it first;
+    `bench_combiner_sweep` turns that measurement into a go/no-go.
+    """
+    return replace(
+        CellParams(),
+        n_inputs=8, input_levels=256, p_in_max_w=0.1e-3,
+        responsivity_a_w=0.9, dark_current_a=5.0e-9,
+        bandwidth_hz=50.0e6, tia_r_f_ohm=2.0e3,
+        tia_in_noise_a_rthz=3.0e-12, tia_noise_figure_db=3.0,
+        temperature_k=300.0, adc_bits=adc_bits,
+    )
+
+
+def bench_combiner_sweep(base: CellParams,
+                         depths: tuple = (1, 2, 4),
+                         il_grid_db: tuple = (0.05, 0.1, 0.2, 0.5, 1.0, 1.5,
+                                              2.0, 3.0, 4.5),
+                         n_vectors: dict | None = None) -> dict:
+    """Sweep per-stage combiner insertion loss (`stage_il_db = (L, L)`) with
+    every other bench parameter fixed, and report -- for the single cell (K=1),
+    the short cascade (K=2), and the target cluster (K=4) -- the effective
+    resolution vs. loss and the loss THRESHOLD at which INT8-equivalence (8-bit
+    RMS) is lost.
+
+    That threshold is the acceptance criterion for the D3 combiner measurement:
+    the fused-fiber tree must come in under it for that depth to be feasible.
+    """
+    if n_vectors is None:
+        n_vectors = {1: 8000, 2: 3000, 3: 1200, 4: 600}
+
+    print("=" * 74)
+    print(" TASK 3 BENCH -- combiner insertion-loss acceptance sweep")
+    print("=" * 74)
+    print(f"  bench config : 8x 0.1 mW O-band, 0.9 A/W PD, 2 kOhm TIA, "
+          f"{base.adc_bits}-bit ADC, 50 MHz")
+    print(f"  free variable: combiner per-stage insertion loss; all else fixed")
+    print(f"  eff. bits shown as  peak / RMS  (RMS is the depth-robust figure)")
+    print("-" * 74)
+    hdr = f"  {'IL/stage':>9}  {'8:1 tot':>7}  " + "  ".join(
+        f"{'K='+str(k):>15}" for k in depths)
+    print(hdr)
+    print("  " + "-" * (len(hdr) - 2))
+
+    curves = {k: [] for k in depths}
+    for L in il_grid_db:
+        cfg = replace(base, stage_il_db=(L, L))
+        cols = []
+        for k in depths:
+            n = base.n_inputs ** k
+            r = simulate_cascade(n, k, cfg, np.random.default_rng(base.seed),
+                                 n_vectors[k])
+            curves[k].append((L, r["eff_bits_peak"], r["eff_bits_rms"]))
+            cols.append(f"{r['eff_bits_peak']:6.2f} /{r['eff_bits_rms']:6.2f}")
+        print(f"  {L:>6.2f} dB  {2*L:>4.1f} dB  " + "  ".join(cols))
+
+    print("  " + "-" * (len(hdr) - 2))
+    thresholds = {}
+    for k in depths:
+        pts = curves[k]                       # (L, pk, rms), L ascending, rms descending
+        thr = None
+        for (l0, _, r0), (l1, _, r1) in zip(pts, pts[1:]):
+            if r0 >= 8.0 > r1:
+                thr = l0 + (l1 - l0) * (r0 - 8.0) / (r0 - r1)
+                break
+        thresholds[k] = thr
+        best_rms, worst_rms = pts[0][2], pts[-1][2]
+        if thr is None:
+            if worst_rms >= 8.0:
+                print(f"  K={k}: INT8-equivalent (RMS) HOLDS across the full sweep -- "
+                      f"{best_rms:.2f} bit at 0.05 dB/stage down to {worst_rms:.2f} bit "
+                      f"at 4.5 dB/stage (fully incoherent). ~{best_rms - worst_rms:.1f} bit "
+                      f"of margin is spent by the combiner, {worst_rms - 8.0:+.2f} bit left.")
+            else:
+                print(f"  K={k}: below INT8-equivalent (RMS) across the whole sweep.")
+        else:
+            print(f"  K={k}: INT8-equivalent (RMS) holds up to ~{thr:.2f} dB/stage "
+                  f"(~{2*thr:.1f} dB total 8:1)  <-- D3 combiner must beat this.")
+    print("=" * 74)
+    return {"curves": curves, "thresholds_db_per_stage": thresholds}
+
+
+# =============================================================================
 # __main__
 # =============================================================================
 
@@ -326,6 +423,8 @@ def main() -> None:
     print()
 
     stress_test(p)
+    print()
+    bench_combiner_sweep(bench_params())
 
 
 if __name__ == "__main__":
