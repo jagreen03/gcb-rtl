@@ -17,3 +17,7 @@ __pycache__/
 
 # Vivado batch-mode scratch dropped in cwd
 clockInfo.txt
+
+# Obsidian Metadata
+.obsidian/
+*.canvas
