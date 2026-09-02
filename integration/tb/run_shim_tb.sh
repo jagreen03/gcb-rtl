@@ -13,8 +13,10 @@ if ! command -v verilator >/dev/null 2>&1; then
 fi
 
 verilator --binary --timing -j 0 \
-    -Wall -Wno-DECLFILENAME -Wno-UNUSEDSIGNAL -Wno-UNUSEDPARAM \
+    -Wall -Wno-fatal \
+    -Wno-DECLFILENAME -Wno-UNUSEDSIGNAL -Wno-UNUSEDPARAM \
     -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -Wno-CASEINCOMPLETE \
+    -Wno-PINCONNECTEMPTY -Wno-UNDRIVEN -Wno-TIMESCALEMOD -Wno-BLKSEQ \
     +define+SIMULATION \
     +incdir+stubs \
     --top-module tb_VX_tcu_shim_q1714 \

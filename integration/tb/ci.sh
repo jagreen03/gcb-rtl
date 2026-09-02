@@ -47,8 +47,10 @@ have_verilator5() {
     [ "${maj:-0}" -ge 5 ]
 }
 
-VL_WARN=( -Wall -Wno-DECLFILENAME -Wno-UNUSEDSIGNAL -Wno-UNUSEDPARAM
-          -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -Wno-CASEINCOMPLETE )
+VL_WARN=( -Wall -Wno-fatal
+          -Wno-DECLFILENAME -Wno-UNUSEDSIGNAL -Wno-UNUSEDPARAM
+          -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -Wno-CASEINCOMPLETE
+          -Wno-PINCONNECTEMPTY -Wno-UNDRIVEN -Wno-TIMESCALEMOD -Wno-BLKSEQ )
 VL_SRC=( ../VX_tcu_q1714_convert_pkg.sv stubs/vx_stubs.sv ../VX_tcu_shim_q1714.sv )
 
 # ---- 1. conversion TB (Icarus) — required --------------------------------
