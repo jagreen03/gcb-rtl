@@ -1,0 +1,1556 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version      : Vivado v.2024.2 (win64) Build 5239630 Fri Nov 08 22:35:27 MST 2024
+| Date              : Tue Sep  1 21:32:31 2026
+| Host              : JohnIdeaPadPro5 running 64-bit major release  (build 9200)
+| Command           : report_timing -sort_by group -max_paths 20 -path_type full_clock_expanded -file D:/R/S/H/gcb-rtl/build/reports/timing_route_worst_paths.rpt
+| Design            : greencoyote_top
+| Device            : xcu55c-fsvh2892
+| Speed File        : -2L  PRODUCTION 1.30 05-01-2022
+| Design State      : Physopt postRoute
+| Temperature Grade : E
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Timing Report
+
+Slack (MET) :             0.362ns  (required time - arrival time)
+  Source:                 u_pilot_regs/r_trim_ch6_reg[5]/C
+                            (rising edge-triggered cell FDPE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Destination:            u_sequencer/dac_data_reg[6][9]/D
+                            (rising edge-triggered cell FDCE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Path Group:             user_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            3.333ns  (user_clk rise@3.333ns - user_clk rise@0.000ns)
+  Data Path Delay:        2.951ns  (logic 2.116ns (71.701%)  route 0.835ns (28.299%))
+  Logic Levels:           10  (CARRY8=2 DSP_A_B_DATA=1 DSP_ALU=1 DSP_M_DATA=1 DSP_MULTIPLIER=1 DSP_OUTPUT=1 DSP_PREADD_DATA=1 LUT2=1 LUT5=1)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.021ns = ( 3.354 - 3.333 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock user_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  user_clk (IN)
+                         net (fo=697, unset)          0.030     0.030    u_pilot_regs/user_clk
+    SLICE_X114Y630       FDPE                                         r  u_pilot_regs/r_trim_ch6_reg[5]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X114Y630       FDPE (Prop_CFF2_SLICEM_C_Q)
+                                                      0.077     0.107 f  u_pilot_regs/r_trim_ch6_reg[5]/Q
+                         net (fo=2, routed)           0.279     0.386    u_sequencer/p_0_in1_in0__5/B[5]
+    DSP48E2_X15Y246      DSP_A_B_DATA (Prop_DSP_A_B_DATA_DSP48E2_B[5]_B2_DATA[5])
+                                                      0.151     0.537 r  u_sequencer/p_0_in1_in0__5/DSP_A_B_DATA_INST/B2_DATA[5]
+                         net (fo=1, routed)           0.000     0.537    u_sequencer/p_0_in1_in0__5/DSP_A_B_DATA.B2_DATA<5>
+    DSP48E2_X15Y246      DSP_PREADD_DATA (Prop_DSP_PREADD_DATA_DSP48E2_B2_DATA[5]_B2B1[5])
+                                                      0.073     0.610 r  u_sequencer/p_0_in1_in0__5/DSP_PREADD_DATA_INST/B2B1[5]
+                         net (fo=1, routed)           0.000     0.610    u_sequencer/p_0_in1_in0__5/DSP_PREADD_DATA.B2B1<5>
+    DSP48E2_X15Y246      DSP_MULTIPLIER (Prop_DSP_MULTIPLIER_DSP48E2_B2B1[5]_V[9])
+                                                      0.609     1.219 f  u_sequencer/p_0_in1_in0__5/DSP_MULTIPLIER_INST/V[9]
+                         net (fo=1, routed)           0.000     1.219    u_sequencer/p_0_in1_in0__5/DSP_MULTIPLIER.V<9>
+    DSP48E2_X15Y246      DSP_M_DATA (Prop_DSP_M_DATA_DSP48E2_V[9]_V_DATA[9])
+                                                      0.046     1.265 r  u_sequencer/p_0_in1_in0__5/DSP_M_DATA_INST/V_DATA[9]
+                         net (fo=1, routed)           0.000     1.265    u_sequencer/p_0_in1_in0__5/DSP_M_DATA.V_DATA<9>
+    DSP48E2_X15Y246      DSP_ALU (Prop_DSP_ALU_DSP48E2_V_DATA[9]_ALU_OUT[9])
+                                                      0.571     1.836 f  u_sequencer/p_0_in1_in0__5/DSP_ALU_INST/ALU_OUT[9]
+                         net (fo=1, routed)           0.000     1.836    u_sequencer/p_0_in1_in0__5/DSP_ALU.ALU_OUT<9>
+    DSP48E2_X15Y246      DSP_OUTPUT (Prop_DSP_OUTPUT_DSP48E2_ALU_OUT[9]_P[9])
+                                                      0.109     1.945 r  u_sequencer/p_0_in1_in0__5/DSP_OUTPUT_INST/P[9]
+                         net (fo=4, routed)           0.294     2.239    u_sequencer/DSP_ALU_INST_4[1]
+    SLICE_X115Y629       LUT2 (Prop_B6LUT_SLICEM_I0_O)
+                                                      0.089     2.328 r  u_sequencer/i__carry_i_7__12/O
+                         net (fo=1, routed)           0.016     2.344    u_sequencer/i__carry_i_7__12_n_0
+    SLICE_X115Y629       CARRY8 (Prop_CARRY8_SLICEM_S[1]_CO[7])
+                                                      0.190     2.534 r  u_sequencer/p_2_out_inferred__5/i__carry/CO[7]
+                         net (fo=1, routed)           0.052     2.586    u_sequencer/p_2_out_inferred__5/i__carry_n_0
+    SLICE_X115Y630       CARRY8 (Prop_CARRY8_SLICEM_CI_O[1])
+                                                      0.076     2.662 r  u_sequencer/p_2_out_inferred__5/i__carry__0/O[1]
+                         net (fo=1, routed)           0.141     2.803    u_pilot_regs/dac_data_reg[6][11]_0[1]
+    SLICE_X115Y632       LUT5 (Prop_A6LUT_SLICEM_I2_O)
+                                                      0.125     2.928 r  u_pilot_regs/dac_data[6][9]_i_1/O
+                         net (fo=1, routed)           0.053     2.981    u_sequencer/dac_data_reg[6][11]_1[5]
+    SLICE_X115Y632       FDCE                                         r  u_sequencer/dac_data_reg[6][9]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock user_clk rise edge)
+                                                      3.333     3.333 r  
+                                                      0.000     3.333 r  user_clk (IN)
+                         net (fo=697, unset)          0.021     3.354    u_sequencer/user_clk
+    SLICE_X115Y632       FDCE                                         r  u_sequencer/dac_data_reg[6][9]/C
+                         clock pessimism              0.000     3.354    
+                         clock uncertainty           -0.035     3.319    
+    SLICE_X115Y632       FDCE (Setup_AFF_SLICEM_C_D)
+                                                      0.025     3.344    u_sequencer/dac_data_reg[6][9]
+  -------------------------------------------------------------------
+                         required time                          3.344    
+                         arrival time                          -2.981    
+  -------------------------------------------------------------------
+                         slack                                  0.362    
+
+Slack (MET) :             0.378ns  (required time - arrival time)
+  Source:                 u_pilot_regs/r_trim_ch6_reg[5]/C
+                            (rising edge-triggered cell FDPE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Destination:            u_sequencer/dac_data_reg[6][8]/D
+                            (rising edge-triggered cell FDCE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Path Group:             user_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            3.333ns  (user_clk rise@3.333ns - user_clk rise@0.000ns)
+  Data Path Delay:        2.935ns  (logic 2.096ns (71.410%)  route 0.839ns (28.590%))
+  Logic Levels:           10  (CARRY8=2 DSP_A_B_DATA=1 DSP_ALU=1 DSP_M_DATA=1 DSP_MULTIPLIER=1 DSP_OUTPUT=1 DSP_PREADD_DATA=1 LUT2=1 LUT5=1)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.021ns = ( 3.354 - 3.333 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock user_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  user_clk (IN)
+                         net (fo=697, unset)          0.030     0.030    u_pilot_regs/user_clk
+    SLICE_X114Y630       FDPE                                         r  u_pilot_regs/r_trim_ch6_reg[5]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X114Y630       FDPE (Prop_CFF2_SLICEM_C_Q)
+                                                      0.077     0.107 f  u_pilot_regs/r_trim_ch6_reg[5]/Q
+                         net (fo=2, routed)           0.279     0.386    u_sequencer/p_0_in1_in0__5/B[5]
+    DSP48E2_X15Y246      DSP_A_B_DATA (Prop_DSP_A_B_DATA_DSP48E2_B[5]_B2_DATA[5])
+                                                      0.151     0.537 r  u_sequencer/p_0_in1_in0__5/DSP_A_B_DATA_INST/B2_DATA[5]
+                         net (fo=1, routed)           0.000     0.537    u_sequencer/p_0_in1_in0__5/DSP_A_B_DATA.B2_DATA<5>
+    DSP48E2_X15Y246      DSP_PREADD_DATA (Prop_DSP_PREADD_DATA_DSP48E2_B2_DATA[5]_B2B1[5])
+                                                      0.073     0.610 r  u_sequencer/p_0_in1_in0__5/DSP_PREADD_DATA_INST/B2B1[5]
+                         net (fo=1, routed)           0.000     0.610    u_sequencer/p_0_in1_in0__5/DSP_PREADD_DATA.B2B1<5>
+    DSP48E2_X15Y246      DSP_MULTIPLIER (Prop_DSP_MULTIPLIER_DSP48E2_B2B1[5]_V[9])
+                                                      0.609     1.219 f  u_sequencer/p_0_in1_in0__5/DSP_MULTIPLIER_INST/V[9]
+                         net (fo=1, routed)           0.000     1.219    u_sequencer/p_0_in1_in0__5/DSP_MULTIPLIER.V<9>
+    DSP48E2_X15Y246      DSP_M_DATA (Prop_DSP_M_DATA_DSP48E2_V[9]_V_DATA[9])
+                                                      0.046     1.265 r  u_sequencer/p_0_in1_in0__5/DSP_M_DATA_INST/V_DATA[9]
+                         net (fo=1, routed)           0.000     1.265    u_sequencer/p_0_in1_in0__5/DSP_M_DATA.V_DATA<9>
+    DSP48E2_X15Y246      DSP_ALU (Prop_DSP_ALU_DSP48E2_V_DATA[9]_ALU_OUT[9])
+                                                      0.571     1.836 f  u_sequencer/p_0_in1_in0__5/DSP_ALU_INST/ALU_OUT[9]
+                         net (fo=1, routed)           0.000     1.836    u_sequencer/p_0_in1_in0__5/DSP_ALU.ALU_OUT<9>
+    DSP48E2_X15Y246      DSP_OUTPUT (Prop_DSP_OUTPUT_DSP48E2_ALU_OUT[9]_P[9])
+                                                      0.109     1.945 r  u_sequencer/p_0_in1_in0__5/DSP_OUTPUT_INST/P[9]
+                         net (fo=4, routed)           0.294     2.239    u_sequencer/DSP_ALU_INST_4[1]
+    SLICE_X115Y629       LUT2 (Prop_B6LUT_SLICEM_I0_O)
+                                                      0.089     2.328 r  u_sequencer/i__carry_i_7__12/O
+                         net (fo=1, routed)           0.016     2.344    u_sequencer/i__carry_i_7__12_n_0
+    SLICE_X115Y629       CARRY8 (Prop_CARRY8_SLICEM_S[1]_CO[7])
+                                                      0.190     2.534 r  u_sequencer/p_2_out_inferred__5/i__carry/CO[7]
+                         net (fo=1, routed)           0.052     2.586    u_sequencer/p_2_out_inferred__5/i__carry_n_0
+    SLICE_X115Y630       CARRY8 (Prop_CARRY8_SLICEM_CI_O[0])
+                                                      0.056     2.642 r  u_sequencer/p_2_out_inferred__5/i__carry__0/O[0]
+                         net (fo=1, routed)           0.139     2.781    u_pilot_regs/dac_data_reg[6][11]_0[0]
+    SLICE_X115Y632       LUT5 (Prop_B6LUT_SLICEM_I2_O)
+                                                      0.125     2.906 r  u_pilot_regs/dac_data[6][8]_i_1/O
+                         net (fo=1, routed)           0.059     2.965    u_sequencer/dac_data_reg[6][11]_1[4]
+    SLICE_X115Y632       FDCE                                         r  u_sequencer/dac_data_reg[6][8]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock user_clk rise edge)
+                                                      3.333     3.333 r  
+                                                      0.000     3.333 r  user_clk (IN)
+                         net (fo=697, unset)          0.021     3.354    u_sequencer/user_clk
+    SLICE_X115Y632       FDCE                                         r  u_sequencer/dac_data_reg[6][8]/C
+                         clock pessimism              0.000     3.354    
+                         clock uncertainty           -0.035     3.319    
+    SLICE_X115Y632       FDCE (Setup_BFF_SLICEM_C_D)
+                                                      0.025     3.344    u_sequencer/dac_data_reg[6][8]
+  -------------------------------------------------------------------
+                         required time                          3.344    
+                         arrival time                          -2.965    
+  -------------------------------------------------------------------
+                         slack                                  0.378    
+
+Slack (MET) :             0.383ns  (required time - arrival time)
+  Source:                 u_pilot_regs/r_trim_ch7_reg[0]/C
+                            (rising edge-triggered cell FDPE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Destination:            u_sequencer/dac_data_reg[7][6]/D
+                            (rising edge-triggered cell FDCE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Path Group:             user_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            3.333ns  (user_clk rise@3.333ns - user_clk rise@0.000ns)
+  Data Path Delay:        2.931ns  (logic 2.113ns (72.100%)  route 0.818ns (27.900%))
+  Logic Levels:           9  (CARRY8=1 DSP_A_B_DATA=1 DSP_ALU=1 DSP_M_DATA=1 DSP_MULTIPLIER=1 DSP_OUTPUT=1 DSP_PREADD_DATA=1 LUT4=1 LUT5=1)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.021ns = ( 3.354 - 3.333 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock user_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  user_clk (IN)
+                         net (fo=697, unset)          0.030     0.030    u_pilot_regs/user_clk
+    SLICE_X114Y627       FDPE                                         r  u_pilot_regs/r_trim_ch7_reg[0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X114Y627       FDPE (Prop_EFF_SLICEM_C_Q)
+                                                      0.076     0.106 f  u_pilot_regs/r_trim_ch7_reg[0]/Q
+                         net (fo=2, routed)           0.232     0.338    u_sequencer/p_0_in1_in0__6/B[0]
+    DSP48E2_X15Y245      DSP_A_B_DATA (Prop_DSP_A_B_DATA_DSP48E2_B[0]_B2_DATA[0])
+                                                      0.151     0.489 r  u_sequencer/p_0_in1_in0__6/DSP_A_B_DATA_INST/B2_DATA[0]
+                         net (fo=1, routed)           0.000     0.489    u_sequencer/p_0_in1_in0__6/DSP_A_B_DATA.B2_DATA<0>
+    DSP48E2_X15Y245      DSP_PREADD_DATA (Prop_DSP_PREADD_DATA_DSP48E2_B2_DATA[0]_B2B1[0])
+                                                      0.073     0.562 r  u_sequencer/p_0_in1_in0__6/DSP_PREADD_DATA_INST/B2B1[0]
+                         net (fo=1, routed)           0.000     0.562    u_sequencer/p_0_in1_in0__6/DSP_PREADD_DATA.B2B1<0>
+    DSP48E2_X15Y245      DSP_MULTIPLIER (Prop_DSP_MULTIPLIER_DSP48E2_B2B1[0]_V[9])
+                                                      0.609     1.171 f  u_sequencer/p_0_in1_in0__6/DSP_MULTIPLIER_INST/V[9]
+                         net (fo=1, routed)           0.000     1.171    u_sequencer/p_0_in1_in0__6/DSP_MULTIPLIER.V<9>
+    DSP48E2_X15Y245      DSP_M_DATA (Prop_DSP_M_DATA_DSP48E2_V[9]_V_DATA[9])
+                                                      0.046     1.217 r  u_sequencer/p_0_in1_in0__6/DSP_M_DATA_INST/V_DATA[9]
+                         net (fo=1, routed)           0.000     1.217    u_sequencer/p_0_in1_in0__6/DSP_M_DATA.V_DATA<9>
+    DSP48E2_X15Y245      DSP_ALU (Prop_DSP_ALU_DSP48E2_V_DATA[9]_ALU_OUT[9])
+                                                      0.571     1.788 f  u_sequencer/p_0_in1_in0__6/DSP_ALU_INST/ALU_OUT[9]
+                         net (fo=1, routed)           0.000     1.788    u_sequencer/p_0_in1_in0__6/DSP_ALU.ALU_OUT<9>
+    DSP48E2_X15Y245      DSP_OUTPUT (Prop_DSP_OUTPUT_DSP48E2_ALU_OUT[9]_P[9])
+                                                      0.109     1.897 r  u_sequencer/p_0_in1_in0__6/DSP_OUTPUT_INST/P[9]
+                         net (fo=4, routed)           0.337     2.234    u_sequencer/DSP_ALU_INST_5[1]
+    SLICE_X115Y627       LUT4 (Prop_A6LUT_SLICEM_I0_O)
+                                                      0.125     2.359 r  u_sequencer/i__carry_i_12__6/O
+                         net (fo=1, routed)           0.013     2.372    u_sequencer/i__carry_i_12__6_n_0
+    SLICE_X115Y627       CARRY8 (Prop_CARRY8_SLICEM_S[0]_CO[5])
+                                                      0.201     2.573 r  u_sequencer/p_0_out_inferred__7/i__carry/CO[5]
+                         net (fo=12, routed)          0.178     2.751    u_pilot_regs/dac_data_reg[7][11][0]
+    SLICE_X115Y626       LUT5 (Prop_H6LUT_SLICEM_I3_O)
+                                                      0.152     2.903 r  u_pilot_regs/dac_data[7][6]_i_1/O
+                         net (fo=1, routed)           0.058     2.961    u_sequencer/dac_data_reg[7][11]_1[2]
+    SLICE_X115Y626       FDCE                                         r  u_sequencer/dac_data_reg[7][6]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock user_clk rise edge)
+                                                      3.333     3.333 r  
+                                                      0.000     3.333 r  user_clk (IN)
+                         net (fo=697, unset)          0.021     3.354    u_sequencer/user_clk
+    SLICE_X115Y626       FDCE                                         r  u_sequencer/dac_data_reg[7][6]/C
+                         clock pessimism              0.000     3.354    
+                         clock uncertainty           -0.035     3.319    
+    SLICE_X115Y626       FDCE (Setup_HFF_SLICEM_C_D)
+                                                      0.025     3.344    u_sequencer/dac_data_reg[7][6]
+  -------------------------------------------------------------------
+                         required time                          3.344    
+                         arrival time                          -2.961    
+  -------------------------------------------------------------------
+                         slack                                  0.383    
+
+Slack (MET) :             0.384ns  (required time - arrival time)
+  Source:                 u_pilot_regs/r_trim_ch6_reg[5]/C
+                            (rising edge-triggered cell FDPE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Destination:            u_sequencer/dac_data_reg[6][5]/D
+                            (rising edge-triggered cell FDCE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Path Group:             user_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            3.333ns  (user_clk rise@3.333ns - user_clk rise@0.000ns)
+  Data Path Delay:        2.928ns  (logic 2.058ns (70.283%)  route 0.870ns (29.717%))
+  Logic Levels:           9  (CARRY8=1 DSP_A_B_DATA=1 DSP_ALU=1 DSP_M_DATA=1 DSP_MULTIPLIER=1 DSP_OUTPUT=1 DSP_PREADD_DATA=1 LUT2=1 LUT6=1)
+  Clock Path Skew:        -0.010ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.020ns = ( 3.353 - 3.333 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock user_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  user_clk (IN)
+                         net (fo=697, unset)          0.030     0.030    u_pilot_regs/user_clk
+    SLICE_X114Y630       FDPE                                         r  u_pilot_regs/r_trim_ch6_reg[5]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X114Y630       FDPE (Prop_CFF2_SLICEM_C_Q)
+                                                      0.077     0.107 f  u_pilot_regs/r_trim_ch6_reg[5]/Q
+                         net (fo=2, routed)           0.279     0.386    u_sequencer/p_0_in1_in0__5/B[5]
+    DSP48E2_X15Y246      DSP_A_B_DATA (Prop_DSP_A_B_DATA_DSP48E2_B[5]_B2_DATA[5])
+                                                      0.151     0.537 r  u_sequencer/p_0_in1_in0__5/DSP_A_B_DATA_INST/B2_DATA[5]
+                         net (fo=1, routed)           0.000     0.537    u_sequencer/p_0_in1_in0__5/DSP_A_B_DATA.B2_DATA<5>
+    DSP48E2_X15Y246      DSP_PREADD_DATA (Prop_DSP_PREADD_DATA_DSP48E2_B2_DATA[5]_B2B1[5])
+                                                      0.073     0.610 r  u_sequencer/p_0_in1_in0__5/DSP_PREADD_DATA_INST/B2B1[5]
+                         net (fo=1, routed)           0.000     0.610    u_sequencer/p_0_in1_in0__5/DSP_PREADD_DATA.B2B1<5>
+    DSP48E2_X15Y246      DSP_MULTIPLIER (Prop_DSP_MULTIPLIER_DSP48E2_B2B1[5]_V[9])
+                                                      0.609     1.219 f  u_sequencer/p_0_in1_in0__5/DSP_MULTIPLIER_INST/V[9]
+                         net (fo=1, routed)           0.000     1.219    u_sequencer/p_0_in1_in0__5/DSP_MULTIPLIER.V<9>
+    DSP48E2_X15Y246      DSP_M_DATA (Prop_DSP_M_DATA_DSP48E2_V[9]_V_DATA[9])
+                                                      0.046     1.265 r  u_sequencer/p_0_in1_in0__5/DSP_M_DATA_INST/V_DATA[9]
+                         net (fo=1, routed)           0.000     1.265    u_sequencer/p_0_in1_in0__5/DSP_M_DATA.V_DATA<9>
+    DSP48E2_X15Y246      DSP_ALU (Prop_DSP_ALU_DSP48E2_V_DATA[9]_ALU_OUT[9])
+                                                      0.571     1.836 f  u_sequencer/p_0_in1_in0__5/DSP_ALU_INST/ALU_OUT[9]
+                         net (fo=1, routed)           0.000     1.836    u_sequencer/p_0_in1_in0__5/DSP_ALU.ALU_OUT<9>
+    DSP48E2_X15Y246      DSP_OUTPUT (Prop_DSP_OUTPUT_DSP48E2_ALU_OUT[9]_P[9])
+                                                      0.109     1.945 r  u_sequencer/p_0_in1_in0__5/DSP_OUTPUT_INST/P[9]
+                         net (fo=4, routed)           0.294     2.239    u_sequencer/DSP_ALU_INST_4[1]
+    SLICE_X115Y629       LUT2 (Prop_B6LUT_SLICEM_I0_O)
+                                                      0.089     2.328 r  u_sequencer/i__carry_i_7__12/O
+                         net (fo=1, routed)           0.016     2.344    u_sequencer/i__carry_i_7__12_n_0
+    SLICE_X115Y629       CARRY8 (Prop_CARRY8_SLICEM_S[1]_O[5])
+                                                      0.237     2.581 r  u_sequencer/p_2_out_inferred__5/i__carry/O[5]
+                         net (fo=1, routed)           0.231     2.812    u_pilot_regs/dac_data_reg[6][7][1]
+    SLICE_X116Y629       LUT6 (Prop_C6LUT_SLICEL_I3_O)
+                                                      0.096     2.908 r  u_pilot_regs/dac_data[6][5]_i_1/O
+                         net (fo=1, routed)           0.050     2.958    u_sequencer/dac_data_reg[6][11]_1[1]
+    SLICE_X116Y629       FDCE                                         r  u_sequencer/dac_data_reg[6][5]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock user_clk rise edge)
+                                                      3.333     3.333 r  
+                                                      0.000     3.333 r  user_clk (IN)
+                         net (fo=697, unset)          0.020     3.353    u_sequencer/user_clk
+    SLICE_X116Y629       FDCE                                         r  u_sequencer/dac_data_reg[6][5]/C
+                         clock pessimism              0.000     3.353    
+                         clock uncertainty           -0.035     3.318    
+    SLICE_X116Y629       FDCE (Setup_CFF_SLICEL_C_D)
+                                                      0.025     3.343    u_sequencer/dac_data_reg[6][5]
+  -------------------------------------------------------------------
+                         required time                          3.343    
+                         arrival time                          -2.958    
+  -------------------------------------------------------------------
+                         slack                                  0.384    
+
+Slack (MET) :             0.389ns  (required time - arrival time)
+  Source:                 u_pilot_regs/r_trim_ch7_reg[0]/C
+                            (rising edge-triggered cell FDPE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Destination:            u_sequencer/dac_data_reg[7][8]/D
+                            (rising edge-triggered cell FDCE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Path Group:             user_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            3.333ns  (user_clk rise@3.333ns - user_clk rise@0.000ns)
+  Data Path Delay:        2.924ns  (logic 2.109ns (72.122%)  route 0.815ns (27.878%))
+  Logic Levels:           9  (CARRY8=1 DSP_A_B_DATA=1 DSP_ALU=1 DSP_M_DATA=1 DSP_MULTIPLIER=1 DSP_OUTPUT=1 DSP_PREADD_DATA=1 LUT4=1 LUT5=1)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.021ns = ( 3.354 - 3.333 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock user_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  user_clk (IN)
+                         net (fo=697, unset)          0.030     0.030    u_pilot_regs/user_clk
+    SLICE_X114Y627       FDPE                                         r  u_pilot_regs/r_trim_ch7_reg[0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X114Y627       FDPE (Prop_EFF_SLICEM_C_Q)
+                                                      0.076     0.106 f  u_pilot_regs/r_trim_ch7_reg[0]/Q
+                         net (fo=2, routed)           0.232     0.338    u_sequencer/p_0_in1_in0__6/B[0]
+    DSP48E2_X15Y245      DSP_A_B_DATA (Prop_DSP_A_B_DATA_DSP48E2_B[0]_B2_DATA[0])
+                                                      0.151     0.489 r  u_sequencer/p_0_in1_in0__6/DSP_A_B_DATA_INST/B2_DATA[0]
+                         net (fo=1, routed)           0.000     0.489    u_sequencer/p_0_in1_in0__6/DSP_A_B_DATA.B2_DATA<0>
+    DSP48E2_X15Y245      DSP_PREADD_DATA (Prop_DSP_PREADD_DATA_DSP48E2_B2_DATA[0]_B2B1[0])
+                                                      0.073     0.562 r  u_sequencer/p_0_in1_in0__6/DSP_PREADD_DATA_INST/B2B1[0]
+                         net (fo=1, routed)           0.000     0.562    u_sequencer/p_0_in1_in0__6/DSP_PREADD_DATA.B2B1<0>
+    DSP48E2_X15Y245      DSP_MULTIPLIER (Prop_DSP_MULTIPLIER_DSP48E2_B2B1[0]_V[9])
+                                                      0.609     1.171 f  u_sequencer/p_0_in1_in0__6/DSP_MULTIPLIER_INST/V[9]
+                         net (fo=1, routed)           0.000     1.171    u_sequencer/p_0_in1_in0__6/DSP_MULTIPLIER.V<9>
+    DSP48E2_X15Y245      DSP_M_DATA (Prop_DSP_M_DATA_DSP48E2_V[9]_V_DATA[9])
+                                                      0.046     1.217 r  u_sequencer/p_0_in1_in0__6/DSP_M_DATA_INST/V_DATA[9]
+                         net (fo=1, routed)           0.000     1.217    u_sequencer/p_0_in1_in0__6/DSP_M_DATA.V_DATA<9>
+    DSP48E2_X15Y245      DSP_ALU (Prop_DSP_ALU_DSP48E2_V_DATA[9]_ALU_OUT[9])
+                                                      0.571     1.788 f  u_sequencer/p_0_in1_in0__6/DSP_ALU_INST/ALU_OUT[9]
+                         net (fo=1, routed)           0.000     1.788    u_sequencer/p_0_in1_in0__6/DSP_ALU.ALU_OUT<9>
+    DSP48E2_X15Y245      DSP_OUTPUT (Prop_DSP_OUTPUT_DSP48E2_ALU_OUT[9]_P[9])
+                                                      0.109     1.897 r  u_sequencer/p_0_in1_in0__6/DSP_OUTPUT_INST/P[9]
+                         net (fo=4, routed)           0.337     2.234    u_sequencer/DSP_ALU_INST_5[1]
+    SLICE_X115Y627       LUT4 (Prop_A6LUT_SLICEM_I0_O)
+                                                      0.125     2.359 r  u_sequencer/i__carry_i_12__6/O
+                         net (fo=1, routed)           0.013     2.372    u_sequencer/i__carry_i_12__6_n_0
+    SLICE_X115Y627       CARRY8 (Prop_CARRY8_SLICEM_S[0]_CO[5])
+                                                      0.201     2.573 r  u_sequencer/p_0_out_inferred__7/i__carry/CO[5]
+                         net (fo=12, routed)          0.167     2.739    u_pilot_regs/dac_data_reg[7][11][0]
+    SLICE_X115Y628       LUT5 (Prop_F6LUT_SLICEM_I3_O)
+                                                      0.148     2.887 r  u_pilot_regs/dac_data[7][8]_i_1/O
+                         net (fo=1, routed)           0.067     2.954    u_sequencer/dac_data_reg[7][11]_1[4]
+    SLICE_X115Y628       FDCE                                         r  u_sequencer/dac_data_reg[7][8]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock user_clk rise edge)
+                                                      3.333     3.333 r  
+                                                      0.000     3.333 r  user_clk (IN)
+                         net (fo=697, unset)          0.021     3.354    u_sequencer/user_clk
+    SLICE_X115Y628       FDCE                                         r  u_sequencer/dac_data_reg[7][8]/C
+                         clock pessimism              0.000     3.354    
+                         clock uncertainty           -0.035     3.319    
+    SLICE_X115Y628       FDCE (Setup_FFF_SLICEM_C_D)
+                                                      0.025     3.344    u_sequencer/dac_data_reg[7][8]
+  -------------------------------------------------------------------
+                         required time                          3.344    
+                         arrival time                          -2.954    
+  -------------------------------------------------------------------
+                         slack                                  0.389    
+
+Slack (MET) :             0.391ns  (required time - arrival time)
+  Source:                 u_pilot_regs/r_trim_ch6_reg[5]/C
+                            (rising edge-triggered cell FDPE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Destination:            u_sequencer/dac_data_reg[6][11]/D
+                            (rising edge-triggered cell FDCE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Path Group:             user_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            3.333ns  (user_clk rise@3.333ns - user_clk rise@0.000ns)
+  Data Path Delay:        2.922ns  (logic 2.085ns (71.351%)  route 0.837ns (28.649%))
+  Logic Levels:           10  (CARRY8=2 DSP_A_B_DATA=1 DSP_ALU=1 DSP_M_DATA=1 DSP_MULTIPLIER=1 DSP_OUTPUT=1 DSP_PREADD_DATA=1 LUT2=1 LUT5=1)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.021ns = ( 3.354 - 3.333 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock user_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  user_clk (IN)
+                         net (fo=697, unset)          0.030     0.030    u_pilot_regs/user_clk
+    SLICE_X114Y630       FDPE                                         r  u_pilot_regs/r_trim_ch6_reg[5]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X114Y630       FDPE (Prop_CFF2_SLICEM_C_Q)
+                                                      0.077     0.107 f  u_pilot_regs/r_trim_ch6_reg[5]/Q
+                         net (fo=2, routed)           0.279     0.386    u_sequencer/p_0_in1_in0__5/B[5]
+    DSP48E2_X15Y246      DSP_A_B_DATA (Prop_DSP_A_B_DATA_DSP48E2_B[5]_B2_DATA[5])
+                                                      0.151     0.537 r  u_sequencer/p_0_in1_in0__5/DSP_A_B_DATA_INST/B2_DATA[5]
+                         net (fo=1, routed)           0.000     0.537    u_sequencer/p_0_in1_in0__5/DSP_A_B_DATA.B2_DATA<5>
+    DSP48E2_X15Y246      DSP_PREADD_DATA (Prop_DSP_PREADD_DATA_DSP48E2_B2_DATA[5]_B2B1[5])
+                                                      0.073     0.610 r  u_sequencer/p_0_in1_in0__5/DSP_PREADD_DATA_INST/B2B1[5]
+                         net (fo=1, routed)           0.000     0.610    u_sequencer/p_0_in1_in0__5/DSP_PREADD_DATA.B2B1<5>
+    DSP48E2_X15Y246      DSP_MULTIPLIER (Prop_DSP_MULTIPLIER_DSP48E2_B2B1[5]_V[9])
+                                                      0.609     1.219 f  u_sequencer/p_0_in1_in0__5/DSP_MULTIPLIER_INST/V[9]
+                         net (fo=1, routed)           0.000     1.219    u_sequencer/p_0_in1_in0__5/DSP_MULTIPLIER.V<9>
+    DSP48E2_X15Y246      DSP_M_DATA (Prop_DSP_M_DATA_DSP48E2_V[9]_V_DATA[9])
+                                                      0.046     1.265 r  u_sequencer/p_0_in1_in0__5/DSP_M_DATA_INST/V_DATA[9]
+                         net (fo=1, routed)           0.000     1.265    u_sequencer/p_0_in1_in0__5/DSP_M_DATA.V_DATA<9>
+    DSP48E2_X15Y246      DSP_ALU (Prop_DSP_ALU_DSP48E2_V_DATA[9]_ALU_OUT[9])
+                                                      0.571     1.836 f  u_sequencer/p_0_in1_in0__5/DSP_ALU_INST/ALU_OUT[9]
+                         net (fo=1, routed)           0.000     1.836    u_sequencer/p_0_in1_in0__5/DSP_ALU.ALU_OUT<9>
+    DSP48E2_X15Y246      DSP_OUTPUT (Prop_DSP_OUTPUT_DSP48E2_ALU_OUT[9]_P[9])
+                                                      0.109     1.945 r  u_sequencer/p_0_in1_in0__5/DSP_OUTPUT_INST/P[9]
+                         net (fo=4, routed)           0.294     2.239    u_sequencer/DSP_ALU_INST_4[1]
+    SLICE_X115Y629       LUT2 (Prop_B6LUT_SLICEM_I0_O)
+                                                      0.089     2.328 r  u_sequencer/i__carry_i_7__12/O
+                         net (fo=1, routed)           0.016     2.344    u_sequencer/i__carry_i_7__12_n_0
+    SLICE_X115Y629       CARRY8 (Prop_CARRY8_SLICEM_S[1]_CO[7])
+                                                      0.190     2.534 r  u_sequencer/p_2_out_inferred__5/i__carry/CO[7]
+                         net (fo=1, routed)           0.052     2.586    u_sequencer/p_2_out_inferred__5/i__carry_n_0
+    SLICE_X115Y630       CARRY8 (Prop_CARRY8_SLICEM_CI_O[3])
+                                                      0.082     2.668 r  u_sequencer/p_2_out_inferred__5/i__carry__0/O[3]
+                         net (fo=1, routed)           0.130     2.798    u_pilot_regs/dac_data_reg[6][11]_0[3]
+    SLICE_X115Y632       LUT5 (Prop_C6LUT_SLICEM_I2_O)
+                                                      0.088     2.886 r  u_pilot_regs/dac_data[6][11]_i_1/O
+                         net (fo=1, routed)           0.066     2.952    u_sequencer/dac_data_reg[6][11]_1[7]
+    SLICE_X115Y632       FDCE                                         r  u_sequencer/dac_data_reg[6][11]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock user_clk rise edge)
+                                                      3.333     3.333 r  
+                                                      0.000     3.333 r  user_clk (IN)
+                         net (fo=697, unset)          0.021     3.354    u_sequencer/user_clk
+    SLICE_X115Y632       FDCE                                         r  u_sequencer/dac_data_reg[6][11]/C
+                         clock pessimism              0.000     3.354    
+                         clock uncertainty           -0.035     3.319    
+    SLICE_X115Y632       FDCE (Setup_CFF_SLICEM_C_D)
+                                                      0.025     3.344    u_sequencer/dac_data_reg[6][11]
+  -------------------------------------------------------------------
+                         required time                          3.344    
+                         arrival time                          -2.952    
+  -------------------------------------------------------------------
+                         slack                                  0.391    
+
+Slack (MET) :             0.402ns  (required time - arrival time)
+  Source:                 u_pilot_regs/r_trim_ch7_reg[0]/C
+                            (rising edge-triggered cell FDPE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Destination:            u_sequencer/dac_data_reg[7][10]/D
+                            (rising edge-triggered cell FDCE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Path Group:             user_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            3.333ns  (user_clk rise@3.333ns - user_clk rise@0.000ns)
+  Data Path Delay:        2.911ns  (logic 2.062ns (70.824%)  route 0.849ns (29.176%))
+  Logic Levels:           9  (CARRY8=1 DSP_A_B_DATA=1 DSP_ALU=1 DSP_M_DATA=1 DSP_MULTIPLIER=1 DSP_OUTPUT=1 DSP_PREADD_DATA=1 LUT4=1 LUT5=1)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.021ns = ( 3.354 - 3.333 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock user_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  user_clk (IN)
+                         net (fo=697, unset)          0.030     0.030    u_pilot_regs/user_clk
+    SLICE_X114Y627       FDPE                                         r  u_pilot_regs/r_trim_ch7_reg[0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X114Y627       FDPE (Prop_EFF_SLICEM_C_Q)
+                                                      0.076     0.106 f  u_pilot_regs/r_trim_ch7_reg[0]/Q
+                         net (fo=2, routed)           0.232     0.338    u_sequencer/p_0_in1_in0__6/B[0]
+    DSP48E2_X15Y245      DSP_A_B_DATA (Prop_DSP_A_B_DATA_DSP48E2_B[0]_B2_DATA[0])
+                                                      0.151     0.489 r  u_sequencer/p_0_in1_in0__6/DSP_A_B_DATA_INST/B2_DATA[0]
+                         net (fo=1, routed)           0.000     0.489    u_sequencer/p_0_in1_in0__6/DSP_A_B_DATA.B2_DATA<0>
+    DSP48E2_X15Y245      DSP_PREADD_DATA (Prop_DSP_PREADD_DATA_DSP48E2_B2_DATA[0]_B2B1[0])
+                                                      0.073     0.562 r  u_sequencer/p_0_in1_in0__6/DSP_PREADD_DATA_INST/B2B1[0]
+                         net (fo=1, routed)           0.000     0.562    u_sequencer/p_0_in1_in0__6/DSP_PREADD_DATA.B2B1<0>
+    DSP48E2_X15Y245      DSP_MULTIPLIER (Prop_DSP_MULTIPLIER_DSP48E2_B2B1[0]_V[9])
+                                                      0.609     1.171 f  u_sequencer/p_0_in1_in0__6/DSP_MULTIPLIER_INST/V[9]
+                         net (fo=1, routed)           0.000     1.171    u_sequencer/p_0_in1_in0__6/DSP_MULTIPLIER.V<9>
+    DSP48E2_X15Y245      DSP_M_DATA (Prop_DSP_M_DATA_DSP48E2_V[9]_V_DATA[9])
+                                                      0.046     1.217 r  u_sequencer/p_0_in1_in0__6/DSP_M_DATA_INST/V_DATA[9]
+                         net (fo=1, routed)           0.000     1.217    u_sequencer/p_0_in1_in0__6/DSP_M_DATA.V_DATA<9>
+    DSP48E2_X15Y245      DSP_ALU (Prop_DSP_ALU_DSP48E2_V_DATA[9]_ALU_OUT[9])
+                                                      0.571     1.788 f  u_sequencer/p_0_in1_in0__6/DSP_ALU_INST/ALU_OUT[9]
+                         net (fo=1, routed)           0.000     1.788    u_sequencer/p_0_in1_in0__6/DSP_ALU.ALU_OUT<9>
+    DSP48E2_X15Y245      DSP_OUTPUT (Prop_DSP_OUTPUT_DSP48E2_ALU_OUT[9]_P[9])
+                                                      0.109     1.897 r  u_sequencer/p_0_in1_in0__6/DSP_OUTPUT_INST/P[9]
+                         net (fo=4, routed)           0.337     2.234    u_sequencer/DSP_ALU_INST_5[1]
+    SLICE_X115Y627       LUT4 (Prop_A6LUT_SLICEM_I0_O)
+                                                      0.125     2.359 r  u_sequencer/i__carry_i_12__6/O
+                         net (fo=1, routed)           0.013     2.372    u_sequencer/i__carry_i_12__6_n_0
+    SLICE_X115Y627       CARRY8 (Prop_CARRY8_SLICEM_S[0]_CO[5])
+                                                      0.201     2.573 r  u_sequencer/p_0_out_inferred__7/i__carry/CO[5]
+                         net (fo=12, routed)          0.210     2.782    u_pilot_regs/dac_data_reg[7][11][0]
+    SLICE_X115Y628       LUT5 (Prop_H6LUT_SLICEM_I3_O)
+                                                      0.101     2.883 r  u_pilot_regs/dac_data[7][10]_i_1/O
+                         net (fo=1, routed)           0.058     2.941    u_sequencer/dac_data_reg[7][11]_1[6]
+    SLICE_X115Y628       FDCE                                         r  u_sequencer/dac_data_reg[7][10]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock user_clk rise edge)
+                                                      3.333     3.333 r  
+                                                      0.000     3.333 r  user_clk (IN)
+                         net (fo=697, unset)          0.021     3.354    u_sequencer/user_clk
+    SLICE_X115Y628       FDCE                                         r  u_sequencer/dac_data_reg[7][10]/C
+                         clock pessimism              0.000     3.354    
+                         clock uncertainty           -0.035     3.319    
+    SLICE_X115Y628       FDCE (Setup_HFF_SLICEM_C_D)
+                                                      0.025     3.344    u_sequencer/dac_data_reg[7][10]
+  -------------------------------------------------------------------
+                         required time                          3.344    
+                         arrival time                          -2.941    
+  -------------------------------------------------------------------
+                         slack                                  0.402    
+
+Slack (MET) :             0.402ns  (required time - arrival time)
+  Source:                 u_pilot_regs/r_trim_ch7_reg[0]/C
+                            (rising edge-triggered cell FDPE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Destination:            u_sequencer/dac_data_reg[7][9]/D
+                            (rising edge-triggered cell FDCE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Path Group:             user_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            3.333ns  (user_clk rise@3.333ns - user_clk rise@0.000ns)
+  Data Path Delay:        2.911ns  (logic 2.109ns (72.444%)  route 0.802ns (27.556%))
+  Logic Levels:           9  (CARRY8=1 DSP_A_B_DATA=1 DSP_ALU=1 DSP_M_DATA=1 DSP_MULTIPLIER=1 DSP_OUTPUT=1 DSP_PREADD_DATA=1 LUT4=1 LUT5=1)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.021ns = ( 3.354 - 3.333 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock user_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  user_clk (IN)
+                         net (fo=697, unset)          0.030     0.030    u_pilot_regs/user_clk
+    SLICE_X114Y627       FDPE                                         r  u_pilot_regs/r_trim_ch7_reg[0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X114Y627       FDPE (Prop_EFF_SLICEM_C_Q)
+                                                      0.076     0.106 f  u_pilot_regs/r_trim_ch7_reg[0]/Q
+                         net (fo=2, routed)           0.232     0.338    u_sequencer/p_0_in1_in0__6/B[0]
+    DSP48E2_X15Y245      DSP_A_B_DATA (Prop_DSP_A_B_DATA_DSP48E2_B[0]_B2_DATA[0])
+                                                      0.151     0.489 r  u_sequencer/p_0_in1_in0__6/DSP_A_B_DATA_INST/B2_DATA[0]
+                         net (fo=1, routed)           0.000     0.489    u_sequencer/p_0_in1_in0__6/DSP_A_B_DATA.B2_DATA<0>
+    DSP48E2_X15Y245      DSP_PREADD_DATA (Prop_DSP_PREADD_DATA_DSP48E2_B2_DATA[0]_B2B1[0])
+                                                      0.073     0.562 r  u_sequencer/p_0_in1_in0__6/DSP_PREADD_DATA_INST/B2B1[0]
+                         net (fo=1, routed)           0.000     0.562    u_sequencer/p_0_in1_in0__6/DSP_PREADD_DATA.B2B1<0>
+    DSP48E2_X15Y245      DSP_MULTIPLIER (Prop_DSP_MULTIPLIER_DSP48E2_B2B1[0]_V[9])
+                                                      0.609     1.171 f  u_sequencer/p_0_in1_in0__6/DSP_MULTIPLIER_INST/V[9]
+                         net (fo=1, routed)           0.000     1.171    u_sequencer/p_0_in1_in0__6/DSP_MULTIPLIER.V<9>
+    DSP48E2_X15Y245      DSP_M_DATA (Prop_DSP_M_DATA_DSP48E2_V[9]_V_DATA[9])
+                                                      0.046     1.217 r  u_sequencer/p_0_in1_in0__6/DSP_M_DATA_INST/V_DATA[9]
+                         net (fo=1, routed)           0.000     1.217    u_sequencer/p_0_in1_in0__6/DSP_M_DATA.V_DATA<9>
+    DSP48E2_X15Y245      DSP_ALU (Prop_DSP_ALU_DSP48E2_V_DATA[9]_ALU_OUT[9])
+                                                      0.571     1.788 f  u_sequencer/p_0_in1_in0__6/DSP_ALU_INST/ALU_OUT[9]
+                         net (fo=1, routed)           0.000     1.788    u_sequencer/p_0_in1_in0__6/DSP_ALU.ALU_OUT<9>
+    DSP48E2_X15Y245      DSP_OUTPUT (Prop_DSP_OUTPUT_DSP48E2_ALU_OUT[9]_P[9])
+                                                      0.109     1.897 r  u_sequencer/p_0_in1_in0__6/DSP_OUTPUT_INST/P[9]
+                         net (fo=4, routed)           0.337     2.234    u_sequencer/DSP_ALU_INST_5[1]
+    SLICE_X115Y627       LUT4 (Prop_A6LUT_SLICEM_I0_O)
+                                                      0.125     2.359 r  u_sequencer/i__carry_i_12__6/O
+                         net (fo=1, routed)           0.013     2.372    u_sequencer/i__carry_i_12__6_n_0
+    SLICE_X115Y627       CARRY8 (Prop_CARRY8_SLICEM_S[0]_CO[5])
+                                                      0.201     2.573 r  u_sequencer/p_0_out_inferred__7/i__carry/CO[5]
+                         net (fo=12, routed)          0.166     2.738    u_pilot_regs/dac_data_reg[7][11][0]
+    SLICE_X115Y628       LUT5 (Prop_E6LUT_SLICEM_I3_O)
+                                                      0.148     2.886 r  u_pilot_regs/dac_data[7][9]_i_1/O
+                         net (fo=1, routed)           0.055     2.941    u_sequencer/dac_data_reg[7][11]_1[5]
+    SLICE_X115Y628       FDCE                                         r  u_sequencer/dac_data_reg[7][9]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock user_clk rise edge)
+                                                      3.333     3.333 r  
+                                                      0.000     3.333 r  user_clk (IN)
+                         net (fo=697, unset)          0.021     3.354    u_sequencer/user_clk
+    SLICE_X115Y628       FDCE                                         r  u_sequencer/dac_data_reg[7][9]/C
+                         clock pessimism              0.000     3.354    
+                         clock uncertainty           -0.035     3.319    
+    SLICE_X115Y628       FDCE (Setup_EFF_SLICEM_C_D)
+                                                      0.025     3.344    u_sequencer/dac_data_reg[7][9]
+  -------------------------------------------------------------------
+                         required time                          3.344    
+                         arrival time                          -2.941    
+  -------------------------------------------------------------------
+                         slack                                  0.402    
+
+Slack (MET) :             0.405ns  (required time - arrival time)
+  Source:                 u_pilot_regs/r_trim_ch7_reg[0]/C
+                            (rising edge-triggered cell FDPE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Destination:            u_sequencer/dac_data_reg[7][11]/D
+                            (rising edge-triggered cell FDCE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Path Group:             user_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            3.333ns  (user_clk rise@3.333ns - user_clk rise@0.000ns)
+  Data Path Delay:        2.908ns  (logic 2.061ns (70.863%)  route 0.847ns (29.137%))
+  Logic Levels:           9  (CARRY8=1 DSP_A_B_DATA=1 DSP_ALU=1 DSP_M_DATA=1 DSP_MULTIPLIER=1 DSP_OUTPUT=1 DSP_PREADD_DATA=1 LUT4=1 LUT5=1)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.021ns = ( 3.354 - 3.333 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock user_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  user_clk (IN)
+                         net (fo=697, unset)          0.030     0.030    u_pilot_regs/user_clk
+    SLICE_X114Y627       FDPE                                         r  u_pilot_regs/r_trim_ch7_reg[0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X114Y627       FDPE (Prop_EFF_SLICEM_C_Q)
+                                                      0.076     0.106 f  u_pilot_regs/r_trim_ch7_reg[0]/Q
+                         net (fo=2, routed)           0.232     0.338    u_sequencer/p_0_in1_in0__6/B[0]
+    DSP48E2_X15Y245      DSP_A_B_DATA (Prop_DSP_A_B_DATA_DSP48E2_B[0]_B2_DATA[0])
+                                                      0.151     0.489 r  u_sequencer/p_0_in1_in0__6/DSP_A_B_DATA_INST/B2_DATA[0]
+                         net (fo=1, routed)           0.000     0.489    u_sequencer/p_0_in1_in0__6/DSP_A_B_DATA.B2_DATA<0>
+    DSP48E2_X15Y245      DSP_PREADD_DATA (Prop_DSP_PREADD_DATA_DSP48E2_B2_DATA[0]_B2B1[0])
+                                                      0.073     0.562 r  u_sequencer/p_0_in1_in0__6/DSP_PREADD_DATA_INST/B2B1[0]
+                         net (fo=1, routed)           0.000     0.562    u_sequencer/p_0_in1_in0__6/DSP_PREADD_DATA.B2B1<0>
+    DSP48E2_X15Y245      DSP_MULTIPLIER (Prop_DSP_MULTIPLIER_DSP48E2_B2B1[0]_V[9])
+                                                      0.609     1.171 f  u_sequencer/p_0_in1_in0__6/DSP_MULTIPLIER_INST/V[9]
+                         net (fo=1, routed)           0.000     1.171    u_sequencer/p_0_in1_in0__6/DSP_MULTIPLIER.V<9>
+    DSP48E2_X15Y245      DSP_M_DATA (Prop_DSP_M_DATA_DSP48E2_V[9]_V_DATA[9])
+                                                      0.046     1.217 r  u_sequencer/p_0_in1_in0__6/DSP_M_DATA_INST/V_DATA[9]
+                         net (fo=1, routed)           0.000     1.217    u_sequencer/p_0_in1_in0__6/DSP_M_DATA.V_DATA<9>
+    DSP48E2_X15Y245      DSP_ALU (Prop_DSP_ALU_DSP48E2_V_DATA[9]_ALU_OUT[9])
+                                                      0.571     1.788 f  u_sequencer/p_0_in1_in0__6/DSP_ALU_INST/ALU_OUT[9]
+                         net (fo=1, routed)           0.000     1.788    u_sequencer/p_0_in1_in0__6/DSP_ALU.ALU_OUT<9>
+    DSP48E2_X15Y245      DSP_OUTPUT (Prop_DSP_OUTPUT_DSP48E2_ALU_OUT[9]_P[9])
+                                                      0.109     1.897 r  u_sequencer/p_0_in1_in0__6/DSP_OUTPUT_INST/P[9]
+                         net (fo=4, routed)           0.337     2.234    u_sequencer/DSP_ALU_INST_5[1]
+    SLICE_X115Y627       LUT4 (Prop_A6LUT_SLICEM_I0_O)
+                                                      0.125     2.359 r  u_sequencer/i__carry_i_12__6/O
+                         net (fo=1, routed)           0.013     2.372    u_sequencer/i__carry_i_12__6_n_0
+    SLICE_X115Y627       CARRY8 (Prop_CARRY8_SLICEM_S[0]_CO[5])
+                                                      0.201     2.573 r  u_sequencer/p_0_out_inferred__7/i__carry/CO[5]
+                         net (fo=12, routed)          0.207     2.779    u_pilot_regs/dac_data_reg[7][11][0]
+    SLICE_X115Y628       LUT5 (Prop_G6LUT_SLICEM_I3_O)
+                                                      0.100     2.879 r  u_pilot_regs/dac_data[7][11]_i_1/O
+                         net (fo=1, routed)           0.059     2.938    u_sequencer/dac_data_reg[7][11]_1[7]
+    SLICE_X115Y628       FDCE                                         r  u_sequencer/dac_data_reg[7][11]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock user_clk rise edge)
+                                                      3.333     3.333 r  
+                                                      0.000     3.333 r  user_clk (IN)
+                         net (fo=697, unset)          0.021     3.354    u_sequencer/user_clk
+    SLICE_X115Y628       FDCE                                         r  u_sequencer/dac_data_reg[7][11]/C
+                         clock pessimism              0.000     3.354    
+                         clock uncertainty           -0.035     3.319    
+    SLICE_X115Y628       FDCE (Setup_GFF_SLICEM_C_D)
+                                                      0.025     3.344    u_sequencer/dac_data_reg[7][11]
+  -------------------------------------------------------------------
+                         required time                          3.344    
+                         arrival time                          -2.938    
+  -------------------------------------------------------------------
+                         slack                                  0.405    
+
+Slack (MET) :             0.407ns  (required time - arrival time)
+  Source:                 u_pilot_regs/r_trim_ch7_reg[0]/C
+                            (rising edge-triggered cell FDPE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Destination:            u_sequencer/dac_data_reg[7][7]/D
+                            (rising edge-triggered cell FDCE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Path Group:             user_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            3.333ns  (user_clk rise@3.333ns - user_clk rise@0.000ns)
+  Data Path Delay:        2.906ns  (logic 2.061ns (70.911%)  route 0.845ns (29.089%))
+  Logic Levels:           9  (CARRY8=1 DSP_A_B_DATA=1 DSP_ALU=1 DSP_M_DATA=1 DSP_MULTIPLIER=1 DSP_OUTPUT=1 DSP_PREADD_DATA=1 LUT4=1 LUT5=1)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.021ns = ( 3.354 - 3.333 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock user_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  user_clk (IN)
+                         net (fo=697, unset)          0.030     0.030    u_pilot_regs/user_clk
+    SLICE_X114Y627       FDPE                                         r  u_pilot_regs/r_trim_ch7_reg[0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X114Y627       FDPE (Prop_EFF_SLICEM_C_Q)
+                                                      0.076     0.106 f  u_pilot_regs/r_trim_ch7_reg[0]/Q
+                         net (fo=2, routed)           0.232     0.338    u_sequencer/p_0_in1_in0__6/B[0]
+    DSP48E2_X15Y245      DSP_A_B_DATA (Prop_DSP_A_B_DATA_DSP48E2_B[0]_B2_DATA[0])
+                                                      0.151     0.489 r  u_sequencer/p_0_in1_in0__6/DSP_A_B_DATA_INST/B2_DATA[0]
+                         net (fo=1, routed)           0.000     0.489    u_sequencer/p_0_in1_in0__6/DSP_A_B_DATA.B2_DATA<0>
+    DSP48E2_X15Y245      DSP_PREADD_DATA (Prop_DSP_PREADD_DATA_DSP48E2_B2_DATA[0]_B2B1[0])
+                                                      0.073     0.562 r  u_sequencer/p_0_in1_in0__6/DSP_PREADD_DATA_INST/B2B1[0]
+                         net (fo=1, routed)           0.000     0.562    u_sequencer/p_0_in1_in0__6/DSP_PREADD_DATA.B2B1<0>
+    DSP48E2_X15Y245      DSP_MULTIPLIER (Prop_DSP_MULTIPLIER_DSP48E2_B2B1[0]_V[9])
+                                                      0.609     1.171 f  u_sequencer/p_0_in1_in0__6/DSP_MULTIPLIER_INST/V[9]
+                         net (fo=1, routed)           0.000     1.171    u_sequencer/p_0_in1_in0__6/DSP_MULTIPLIER.V<9>
+    DSP48E2_X15Y245      DSP_M_DATA (Prop_DSP_M_DATA_DSP48E2_V[9]_V_DATA[9])
+                                                      0.046     1.217 r  u_sequencer/p_0_in1_in0__6/DSP_M_DATA_INST/V_DATA[9]
+                         net (fo=1, routed)           0.000     1.217    u_sequencer/p_0_in1_in0__6/DSP_M_DATA.V_DATA<9>
+    DSP48E2_X15Y245      DSP_ALU (Prop_DSP_ALU_DSP48E2_V_DATA[9]_ALU_OUT[9])
+                                                      0.571     1.788 f  u_sequencer/p_0_in1_in0__6/DSP_ALU_INST/ALU_OUT[9]
+                         net (fo=1, routed)           0.000     1.788    u_sequencer/p_0_in1_in0__6/DSP_ALU.ALU_OUT<9>
+    DSP48E2_X15Y245      DSP_OUTPUT (Prop_DSP_OUTPUT_DSP48E2_ALU_OUT[9]_P[9])
+                                                      0.109     1.897 r  u_sequencer/p_0_in1_in0__6/DSP_OUTPUT_INST/P[9]
+                         net (fo=4, routed)           0.337     2.234    u_sequencer/DSP_ALU_INST_5[1]
+    SLICE_X115Y627       LUT4 (Prop_A6LUT_SLICEM_I0_O)
+                                                      0.125     2.359 r  u_sequencer/i__carry_i_12__6/O
+                         net (fo=1, routed)           0.013     2.372    u_sequencer/i__carry_i_12__6_n_0
+    SLICE_X115Y627       CARRY8 (Prop_CARRY8_SLICEM_S[0]_CO[5])
+                                                      0.201     2.573 r  u_sequencer/p_0_out_inferred__7/i__carry/CO[5]
+                         net (fo=12, routed)          0.205     2.777    u_pilot_regs/dac_data_reg[7][11][0]
+    SLICE_X115Y626       LUT5 (Prop_G6LUT_SLICEM_I3_O)
+                                                      0.100     2.877 r  u_pilot_regs/dac_data[7][7]_i_1/O
+                         net (fo=1, routed)           0.059     2.936    u_sequencer/dac_data_reg[7][11]_1[3]
+    SLICE_X115Y626       FDCE                                         r  u_sequencer/dac_data_reg[7][7]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock user_clk rise edge)
+                                                      3.333     3.333 r  
+                                                      0.000     3.333 r  user_clk (IN)
+                         net (fo=697, unset)          0.021     3.354    u_sequencer/user_clk
+    SLICE_X115Y626       FDCE                                         r  u_sequencer/dac_data_reg[7][7]/C
+                         clock pessimism              0.000     3.354    
+                         clock uncertainty           -0.035     3.319    
+    SLICE_X115Y626       FDCE (Setup_GFF_SLICEM_C_D)
+                                                      0.025     3.344    u_sequencer/dac_data_reg[7][7]
+  -------------------------------------------------------------------
+                         required time                          3.344    
+                         arrival time                          -2.936    
+  -------------------------------------------------------------------
+                         slack                                  0.407    
+
+Slack (MET) :             0.409ns  (required time - arrival time)
+  Source:                 u_pilot_regs/r_trim_ch2_reg[4]/C
+                            (rising edge-triggered cell FDPE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Destination:            u_sequencer/dac_data_reg[2][9]/D
+                            (rising edge-triggered cell FDCE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Path Group:             user_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            3.333ns  (user_clk rise@3.333ns - user_clk rise@0.000ns)
+  Data Path Delay:        2.904ns  (logic 2.114ns (72.791%)  route 0.790ns (27.209%))
+  Logic Levels:           9  (CARRY8=1 DSP_A_B_DATA=1 DSP_ALU=1 DSP_M_DATA=1 DSP_MULTIPLIER=1 DSP_OUTPUT=1 DSP_PREADD_DATA=1 LUT4=1 LUT5=1)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.021ns = ( 3.354 - 3.333 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock user_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  user_clk (IN)
+                         net (fo=697, unset)          0.030     0.030    u_pilot_regs/user_clk
+    SLICE_X114Y635       FDPE                                         r  u_pilot_regs/r_trim_ch2_reg[4]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X114Y635       FDPE (Prop_FFF2_SLICEM_C_Q)
+                                                      0.079     0.109 f  u_pilot_regs/r_trim_ch2_reg[4]/Q
+                         net (fo=2, routed)           0.252     0.361    u_sequencer/p_0_in1_in0__1/B[4]
+    DSP48E2_X15Y248      DSP_A_B_DATA (Prop_DSP_A_B_DATA_DSP48E2_B[4]_B2_DATA[4])
+                                                      0.151     0.512 r  u_sequencer/p_0_in1_in0__1/DSP_A_B_DATA_INST/B2_DATA[4]
+                         net (fo=1, routed)           0.000     0.512    u_sequencer/p_0_in1_in0__1/DSP_A_B_DATA.B2_DATA<4>
+    DSP48E2_X15Y248      DSP_PREADD_DATA (Prop_DSP_PREADD_DATA_DSP48E2_B2_DATA[4]_B2B1[4])
+                                                      0.073     0.585 r  u_sequencer/p_0_in1_in0__1/DSP_PREADD_DATA_INST/B2B1[4]
+                         net (fo=1, routed)           0.000     0.585    u_sequencer/p_0_in1_in0__1/DSP_PREADD_DATA.B2B1<4>
+    DSP48E2_X15Y248      DSP_MULTIPLIER (Prop_DSP_MULTIPLIER_DSP48E2_B2B1[4]_V[10])
+                                                      0.609     1.194 f  u_sequencer/p_0_in1_in0__1/DSP_MULTIPLIER_INST/V[10]
+                         net (fo=1, routed)           0.000     1.194    u_sequencer/p_0_in1_in0__1/DSP_MULTIPLIER.V<10>
+    DSP48E2_X15Y248      DSP_M_DATA (Prop_DSP_M_DATA_DSP48E2_V[10]_V_DATA[10])
+                                                      0.046     1.240 r  u_sequencer/p_0_in1_in0__1/DSP_M_DATA_INST/V_DATA[10]
+                         net (fo=1, routed)           0.000     1.240    u_sequencer/p_0_in1_in0__1/DSP_M_DATA.V_DATA<10>
+    DSP48E2_X15Y248      DSP_ALU (Prop_DSP_ALU_DSP48E2_V_DATA[10]_ALU_OUT[10])
+                                                      0.571     1.811 f  u_sequencer/p_0_in1_in0__1/DSP_ALU_INST/ALU_OUT[10]
+                         net (fo=1, routed)           0.000     1.811    u_sequencer/p_0_in1_in0__1/DSP_ALU.ALU_OUT<10>
+    DSP48E2_X15Y248      DSP_OUTPUT (Prop_DSP_OUTPUT_DSP48E2_ALU_OUT[10]_P[10])
+                                                      0.109     1.920 r  u_sequencer/p_0_in1_in0__1/DSP_OUTPUT_INST/P[10]
+                         net (fo=4, routed)           0.221     2.141    u_sequencer/DSP_ALU_INST_0[2]
+    SLICE_X115Y635       LUT4 (Prop_B6LUT_SLICEM_I2_O)
+                                                      0.125     2.266 r  u_sequencer/i__carry_i_11__1/O
+                         net (fo=1, routed)           0.016     2.282    u_sequencer/i__carry_i_11__1_n_0
+    SLICE_X115Y635       CARRY8 (Prop_CARRY8_SLICEM_S[1]_CO[5])
+                                                      0.199     2.481 r  u_sequencer/p_0_out_inferred__2/i__carry/CO[5]
+                         net (fo=12, routed)          0.243     2.724    u_pilot_regs/dac_data_reg[2][6][0]
+    SLICE_X114Y633       LUT5 (Prop_H6LUT_SLICEM_I0_O)
+                                                      0.152     2.876 r  u_pilot_regs/dac_data[2][9]_i_1/O
+                         net (fo=1, routed)           0.058     2.934    u_sequencer/dac_data_reg[2][11]_1[5]
+    SLICE_X114Y633       FDCE                                         r  u_sequencer/dac_data_reg[2][9]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock user_clk rise edge)
+                                                      3.333     3.333 r  
+                                                      0.000     3.333 r  user_clk (IN)
+                         net (fo=697, unset)          0.021     3.354    u_sequencer/user_clk
+    SLICE_X114Y633       FDCE                                         r  u_sequencer/dac_data_reg[2][9]/C
+                         clock pessimism              0.000     3.354    
+                         clock uncertainty           -0.035     3.319    
+    SLICE_X114Y633       FDCE (Setup_HFF_SLICEM_C_D)
+                                                      0.025     3.344    u_sequencer/dac_data_reg[2][9]
+  -------------------------------------------------------------------
+                         required time                          3.344    
+                         arrival time                          -2.934    
+  -------------------------------------------------------------------
+                         slack                                  0.409    
+
+Slack (MET) :             0.415ns  (required time - arrival time)
+  Source:                 u_pilot_regs/r_trim_ch7_reg[0]/C
+                            (rising edge-triggered cell FDPE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Destination:            u_sequencer/dac_data_reg[7][4]/D
+                            (rising edge-triggered cell FDCE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Path Group:             user_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            3.333ns  (user_clk rise@3.333ns - user_clk rise@0.000ns)
+  Data Path Delay:        2.899ns  (logic 2.049ns (70.691%)  route 0.850ns (29.309%))
+  Logic Levels:           9  (CARRY8=1 DSP_A_B_DATA=1 DSP_ALU=1 DSP_M_DATA=1 DSP_MULTIPLIER=1 DSP_OUTPUT=1 DSP_PREADD_DATA=1 LUT4=1 LUT6=1)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.021ns = ( 3.354 - 3.333 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock user_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  user_clk (IN)
+                         net (fo=697, unset)          0.030     0.030    u_pilot_regs/user_clk
+    SLICE_X114Y627       FDPE                                         r  u_pilot_regs/r_trim_ch7_reg[0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X114Y627       FDPE (Prop_EFF_SLICEM_C_Q)
+                                                      0.076     0.106 f  u_pilot_regs/r_trim_ch7_reg[0]/Q
+                         net (fo=2, routed)           0.232     0.338    u_sequencer/p_0_in1_in0__6/B[0]
+    DSP48E2_X15Y245      DSP_A_B_DATA (Prop_DSP_A_B_DATA_DSP48E2_B[0]_B2_DATA[0])
+                                                      0.151     0.489 r  u_sequencer/p_0_in1_in0__6/DSP_A_B_DATA_INST/B2_DATA[0]
+                         net (fo=1, routed)           0.000     0.489    u_sequencer/p_0_in1_in0__6/DSP_A_B_DATA.B2_DATA<0>
+    DSP48E2_X15Y245      DSP_PREADD_DATA (Prop_DSP_PREADD_DATA_DSP48E2_B2_DATA[0]_B2B1[0])
+                                                      0.073     0.562 r  u_sequencer/p_0_in1_in0__6/DSP_PREADD_DATA_INST/B2B1[0]
+                         net (fo=1, routed)           0.000     0.562    u_sequencer/p_0_in1_in0__6/DSP_PREADD_DATA.B2B1<0>
+    DSP48E2_X15Y245      DSP_MULTIPLIER (Prop_DSP_MULTIPLIER_DSP48E2_B2B1[0]_V[9])
+                                                      0.609     1.171 f  u_sequencer/p_0_in1_in0__6/DSP_MULTIPLIER_INST/V[9]
+                         net (fo=1, routed)           0.000     1.171    u_sequencer/p_0_in1_in0__6/DSP_MULTIPLIER.V<9>
+    DSP48E2_X15Y245      DSP_M_DATA (Prop_DSP_M_DATA_DSP48E2_V[9]_V_DATA[9])
+                                                      0.046     1.217 r  u_sequencer/p_0_in1_in0__6/DSP_M_DATA_INST/V_DATA[9]
+                         net (fo=1, routed)           0.000     1.217    u_sequencer/p_0_in1_in0__6/DSP_M_DATA.V_DATA<9>
+    DSP48E2_X15Y245      DSP_ALU (Prop_DSP_ALU_DSP48E2_V_DATA[9]_ALU_OUT[9])
+                                                      0.571     1.788 f  u_sequencer/p_0_in1_in0__6/DSP_ALU_INST/ALU_OUT[9]
+                         net (fo=1, routed)           0.000     1.788    u_sequencer/p_0_in1_in0__6/DSP_ALU.ALU_OUT<9>
+    DSP48E2_X15Y245      DSP_OUTPUT (Prop_DSP_OUTPUT_DSP48E2_ALU_OUT[9]_P[9])
+                                                      0.109     1.897 r  u_sequencer/p_0_in1_in0__6/DSP_OUTPUT_INST/P[9]
+                         net (fo=4, routed)           0.337     2.234    u_sequencer/DSP_ALU_INST_5[1]
+    SLICE_X115Y627       LUT4 (Prop_A6LUT_SLICEM_I0_O)
+                                                      0.125     2.359 r  u_sequencer/i__carry_i_12__6/O
+                         net (fo=1, routed)           0.013     2.372    u_sequencer/i__carry_i_12__6_n_0
+    SLICE_X115Y627       CARRY8 (Prop_CARRY8_SLICEM_S[0]_CO[5])
+                                                      0.201     2.573 r  u_sequencer/p_0_out_inferred__7/i__carry/CO[5]
+                         net (fo=12, routed)          0.196     2.769    u_pilot_regs/dac_data_reg[7][11][0]
+    SLICE_X115Y626       LUT6 (Prop_D6LUT_SLICEM_I4_O)
+                                                      0.088     2.857 r  u_pilot_regs/dac_data[7][4]_i_1/O
+                         net (fo=1, routed)           0.072     2.929    u_sequencer/dac_data_reg[7][11]_1[0]
+    SLICE_X115Y626       FDCE                                         r  u_sequencer/dac_data_reg[7][4]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock user_clk rise edge)
+                                                      3.333     3.333 r  
+                                                      0.000     3.333 r  user_clk (IN)
+                         net (fo=697, unset)          0.021     3.354    u_sequencer/user_clk
+    SLICE_X115Y626       FDCE                                         r  u_sequencer/dac_data_reg[7][4]/C
+                         clock pessimism              0.000     3.354    
+                         clock uncertainty           -0.035     3.319    
+    SLICE_X115Y626       FDCE (Setup_DFF_SLICEM_C_D)
+                                                      0.025     3.344    u_sequencer/dac_data_reg[7][4]
+  -------------------------------------------------------------------
+                         required time                          3.344    
+                         arrival time                          -2.929    
+  -------------------------------------------------------------------
+                         slack                                  0.415    
+
+Slack (MET) :             0.417ns  (required time - arrival time)
+  Source:                 u_pilot_regs/r_trim_ch0_reg[4]/C
+                            (rising edge-triggered cell FDPE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Destination:            u_sequencer/dac_data_reg[0][10]/D
+                            (rising edge-triggered cell FDCE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Path Group:             user_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            3.333ns  (user_clk rise@3.333ns - user_clk rise@0.000ns)
+  Data Path Delay:        2.895ns  (logic 2.026ns (69.975%)  route 0.869ns (30.025%))
+  Logic Levels:           10  (CARRY8=2 DSP_A_B_DATA=1 DSP_ALU=1 DSP_M_DATA=1 DSP_MULTIPLIER=1 DSP_OUTPUT=1 DSP_PREADD_DATA=1 LUT2=1 LUT5=1)
+  Clock Path Skew:        -0.010ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.020ns = ( 3.353 - 3.333 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock user_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  user_clk (IN)
+                         net (fo=697, unset)          0.030     0.030    u_pilot_regs/user_clk
+    SLICE_X107Y630       FDPE                                         r  u_pilot_regs/r_trim_ch0_reg[4]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X107Y630       FDPE (Prop_EFF_SLICEM_C_Q)
+                                                      0.076     0.106 f  u_pilot_regs/r_trim_ch0_reg[4]/Q
+                         net (fo=2, routed)           0.377     0.483    u_sequencer/p_0_in1_in0/B[4]
+    DSP48E2_X14Y246      DSP_A_B_DATA (Prop_DSP_A_B_DATA_DSP48E2_B[4]_B2_DATA[4])
+                                                      0.151     0.634 r  u_sequencer/p_0_in1_in0/DSP_A_B_DATA_INST/B2_DATA[4]
+                         net (fo=1, routed)           0.000     0.634    u_sequencer/p_0_in1_in0/DSP_A_B_DATA.B2_DATA<4>
+    DSP48E2_X14Y246      DSP_PREADD_DATA (Prop_DSP_PREADD_DATA_DSP48E2_B2_DATA[4]_B2B1[4])
+                                                      0.073     0.707 r  u_sequencer/p_0_in1_in0/DSP_PREADD_DATA_INST/B2B1[4]
+                         net (fo=1, routed)           0.000     0.707    u_sequencer/p_0_in1_in0/DSP_PREADD_DATA.B2B1<4>
+    DSP48E2_X14Y246      DSP_MULTIPLIER (Prop_DSP_MULTIPLIER_DSP48E2_B2B1[4]_V[10])
+                                                      0.609     1.316 f  u_sequencer/p_0_in1_in0/DSP_MULTIPLIER_INST/V[10]
+                         net (fo=1, routed)           0.000     1.316    u_sequencer/p_0_in1_in0/DSP_MULTIPLIER.V<10>
+    DSP48E2_X14Y246      DSP_M_DATA (Prop_DSP_M_DATA_DSP48E2_V[10]_V_DATA[10])
+                                                      0.046     1.362 r  u_sequencer/p_0_in1_in0/DSP_M_DATA_INST/V_DATA[10]
+                         net (fo=1, routed)           0.000     1.362    u_sequencer/p_0_in1_in0/DSP_M_DATA.V_DATA<10>
+    DSP48E2_X14Y246      DSP_ALU (Prop_DSP_ALU_DSP48E2_V_DATA[10]_ALU_OUT[10])
+                                                      0.571     1.933 f  u_sequencer/p_0_in1_in0/DSP_ALU_INST/ALU_OUT[10]
+                         net (fo=1, routed)           0.000     1.933    u_sequencer/p_0_in1_in0/DSP_ALU.ALU_OUT<10>
+    DSP48E2_X14Y246      DSP_OUTPUT (Prop_DSP_OUTPUT_DSP48E2_ALU_OUT[10]_P[10])
+                                                      0.109     2.042 r  u_sequencer/p_0_in1_in0/DSP_OUTPUT_INST/P[10]
+                         net (fo=4, routed)           0.210     2.252    u_pilot_regs/P[2]
+    SLICE_X107Y631       LUT2 (Prop_C6LUT_SLICEM_I1_O)
+                                                      0.051     2.303 r  u_pilot_regs/p_2_out_carry_i_6/O
+                         net (fo=1, routed)           0.021     2.324    u_sequencer/dac_data_reg[0][7]_0[2]
+    SLICE_X107Y631       CARRY8 (Prop_CARRY8_SLICEM_S[2]_CO[7])
+                                                      0.161     2.485 r  u_sequencer/p_2_out_carry/CO[7]
+                         net (fo=1, routed)           0.026     2.511    u_sequencer/p_2_out_carry_n_0
+    SLICE_X107Y632       CARRY8 (Prop_CARRY8_SLICEM_CI_O[2])
+                                                      0.067     2.578 r  u_sequencer/p_2_out_carry__0/O[2]
+                         net (fo=1, routed)           0.218     2.796    u_pilot_regs/dac_data_reg[0][11][2]
+    SLICE_X108Y632       LUT5 (Prop_A5LUT_SLICEL_I2_O)
+                                                      0.112     2.908 r  u_pilot_regs/dac_data[0][10]_i_1/O
+                         net (fo=1, routed)           0.017     2.925    u_sequencer/D[6]
+    SLICE_X108Y632       FDCE                                         r  u_sequencer/dac_data_reg[0][10]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock user_clk rise edge)
+                                                      3.333     3.333 r  
+                                                      0.000     3.333 r  user_clk (IN)
+                         net (fo=697, unset)          0.020     3.353    u_sequencer/user_clk
+    SLICE_X108Y632       FDCE                                         r  u_sequencer/dac_data_reg[0][10]/C
+                         clock pessimism              0.000     3.353    
+                         clock uncertainty           -0.035     3.318    
+    SLICE_X108Y632       FDCE (Setup_AFF2_SLICEL_C_D)
+                                                      0.025     3.343    u_sequencer/dac_data_reg[0][10]
+  -------------------------------------------------------------------
+                         required time                          3.343    
+                         arrival time                          -2.925    
+  -------------------------------------------------------------------
+                         slack                                  0.417    
+
+Slack (MET) :             0.419ns  (required time - arrival time)
+  Source:                 u_pilot_regs/r_trim_ch6_reg[5]/C
+                            (rising edge-triggered cell FDPE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Destination:            u_sequencer/dac_data_reg[6][6]/D
+                            (rising edge-triggered cell FDCE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Path Group:             user_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            3.333ns  (user_clk rise@3.333ns - user_clk rise@0.000ns)
+  Data Path Delay:        2.894ns  (logic 2.023ns (69.892%)  route 0.871ns (30.108%))
+  Logic Levels:           9  (CARRY8=1 DSP_A_B_DATA=1 DSP_ALU=1 DSP_M_DATA=1 DSP_MULTIPLIER=1 DSP_OUTPUT=1 DSP_PREADD_DATA=1 LUT4=1 LUT5=1)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.021ns = ( 3.354 - 3.333 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock user_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  user_clk (IN)
+                         net (fo=697, unset)          0.030     0.030    u_pilot_regs/user_clk
+    SLICE_X114Y630       FDPE                                         r  u_pilot_regs/r_trim_ch6_reg[5]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X114Y630       FDPE (Prop_CFF2_SLICEM_C_Q)
+                                                      0.077     0.107 f  u_pilot_regs/r_trim_ch6_reg[5]/Q
+                         net (fo=2, routed)           0.279     0.386    u_sequencer/p_0_in1_in0__5/B[5]
+    DSP48E2_X15Y246      DSP_A_B_DATA (Prop_DSP_A_B_DATA_DSP48E2_B[5]_B2_DATA[5])
+                                                      0.151     0.537 r  u_sequencer/p_0_in1_in0__5/DSP_A_B_DATA_INST/B2_DATA[5]
+                         net (fo=1, routed)           0.000     0.537    u_sequencer/p_0_in1_in0__5/DSP_A_B_DATA.B2_DATA<5>
+    DSP48E2_X15Y246      DSP_PREADD_DATA (Prop_DSP_PREADD_DATA_DSP48E2_B2_DATA[5]_B2B1[5])
+                                                      0.073     0.610 r  u_sequencer/p_0_in1_in0__5/DSP_PREADD_DATA_INST/B2B1[5]
+                         net (fo=1, routed)           0.000     0.610    u_sequencer/p_0_in1_in0__5/DSP_PREADD_DATA.B2B1<5>
+    DSP48E2_X15Y246      DSP_MULTIPLIER (Prop_DSP_MULTIPLIER_DSP48E2_B2B1[5]_V[10])
+                                                      0.609     1.219 f  u_sequencer/p_0_in1_in0__5/DSP_MULTIPLIER_INST/V[10]
+                         net (fo=1, routed)           0.000     1.219    u_sequencer/p_0_in1_in0__5/DSP_MULTIPLIER.V<10>
+    DSP48E2_X15Y246      DSP_M_DATA (Prop_DSP_M_DATA_DSP48E2_V[10]_V_DATA[10])
+                                                      0.046     1.265 r  u_sequencer/p_0_in1_in0__5/DSP_M_DATA_INST/V_DATA[10]
+                         net (fo=1, routed)           0.000     1.265    u_sequencer/p_0_in1_in0__5/DSP_M_DATA.V_DATA<10>
+    DSP48E2_X15Y246      DSP_ALU (Prop_DSP_ALU_DSP48E2_V_DATA[10]_ALU_OUT[10])
+                                                      0.571     1.836 f  u_sequencer/p_0_in1_in0__5/DSP_ALU_INST/ALU_OUT[10]
+                         net (fo=1, routed)           0.000     1.836    u_sequencer/p_0_in1_in0__5/DSP_ALU.ALU_OUT<10>
+    DSP48E2_X15Y246      DSP_OUTPUT (Prop_DSP_OUTPUT_DSP48E2_ALU_OUT[10]_P[10])
+                                                      0.109     1.945 r  u_sequencer/p_0_in1_in0__5/DSP_OUTPUT_INST/P[10]
+                         net (fo=4, routed)           0.214     2.159    u_sequencer/DSP_ALU_INST_4[2]
+    SLICE_X115Y631       LUT4 (Prop_B6LUT_SLICEM_I2_O)
+                                                      0.089     2.248 r  u_sequencer/i__carry_i_11__5/O
+                         net (fo=1, routed)           0.016     2.264    u_sequencer/i__carry_i_11__5_n_0
+    SLICE_X115Y631       CARRY8 (Prop_CARRY8_SLICEM_S[1]_CO[5])
+                                                      0.199     2.463 r  u_sequencer/p_0_out_inferred__6/i__carry/CO[5]
+                         net (fo=12, routed)          0.291     2.753    u_pilot_regs/dac_data_reg[6][11][0]
+    SLICE_X115Y628       LUT5 (Prop_D6LUT_SLICEM_I3_O)
+                                                      0.099     2.852 r  u_pilot_regs/dac_data[6][6]_i_1/O
+                         net (fo=1, routed)           0.072     2.924    u_sequencer/dac_data_reg[6][11]_1[2]
+    SLICE_X115Y628       FDCE                                         r  u_sequencer/dac_data_reg[6][6]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock user_clk rise edge)
+                                                      3.333     3.333 r  
+                                                      0.000     3.333 r  user_clk (IN)
+                         net (fo=697, unset)          0.021     3.354    u_sequencer/user_clk
+    SLICE_X115Y628       FDCE                                         r  u_sequencer/dac_data_reg[6][6]/C
+                         clock pessimism              0.000     3.354    
+                         clock uncertainty           -0.035     3.319    
+    SLICE_X115Y628       FDCE (Setup_DFF_SLICEM_C_D)
+                                                      0.025     3.344    u_sequencer/dac_data_reg[6][6]
+  -------------------------------------------------------------------
+                         required time                          3.344    
+                         arrival time                          -2.924    
+  -------------------------------------------------------------------
+                         slack                                  0.419    
+
+Slack (MET) :             0.422ns  (required time - arrival time)
+  Source:                 u_pilot_regs/r_trim_ch0_reg[4]/C
+                            (rising edge-triggered cell FDPE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Destination:            u_sequencer/dac_data_reg[0][6]/D
+                            (rising edge-triggered cell FDCE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Path Group:             user_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            3.333ns  (user_clk rise@3.333ns - user_clk rise@0.000ns)
+  Data Path Delay:        2.890ns  (logic 1.970ns (68.159%)  route 0.920ns (31.841%))
+  Logic Levels:           9  (CARRY8=1 DSP_A_B_DATA=1 DSP_ALU=1 DSP_M_DATA=1 DSP_MULTIPLIER=1 DSP_OUTPUT=1 DSP_PREADD_DATA=1 LUT2=1 LUT5=1)
+  Clock Path Skew:        -0.010ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.020ns = ( 3.353 - 3.333 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock user_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  user_clk (IN)
+                         net (fo=697, unset)          0.030     0.030    u_pilot_regs/user_clk
+    SLICE_X107Y630       FDPE                                         r  u_pilot_regs/r_trim_ch0_reg[4]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X107Y630       FDPE (Prop_EFF_SLICEM_C_Q)
+                                                      0.076     0.106 f  u_pilot_regs/r_trim_ch0_reg[4]/Q
+                         net (fo=2, routed)           0.377     0.483    u_sequencer/p_0_in1_in0/B[4]
+    DSP48E2_X14Y246      DSP_A_B_DATA (Prop_DSP_A_B_DATA_DSP48E2_B[4]_B2_DATA[4])
+                                                      0.151     0.634 r  u_sequencer/p_0_in1_in0/DSP_A_B_DATA_INST/B2_DATA[4]
+                         net (fo=1, routed)           0.000     0.634    u_sequencer/p_0_in1_in0/DSP_A_B_DATA.B2_DATA<4>
+    DSP48E2_X14Y246      DSP_PREADD_DATA (Prop_DSP_PREADD_DATA_DSP48E2_B2_DATA[4]_B2B1[4])
+                                                      0.073     0.707 r  u_sequencer/p_0_in1_in0/DSP_PREADD_DATA_INST/B2B1[4]
+                         net (fo=1, routed)           0.000     0.707    u_sequencer/p_0_in1_in0/DSP_PREADD_DATA.B2B1<4>
+    DSP48E2_X14Y246      DSP_MULTIPLIER (Prop_DSP_MULTIPLIER_DSP48E2_B2B1[4]_V[10])
+                                                      0.609     1.316 f  u_sequencer/p_0_in1_in0/DSP_MULTIPLIER_INST/V[10]
+                         net (fo=1, routed)           0.000     1.316    u_sequencer/p_0_in1_in0/DSP_MULTIPLIER.V<10>
+    DSP48E2_X14Y246      DSP_M_DATA (Prop_DSP_M_DATA_DSP48E2_V[10]_V_DATA[10])
+                                                      0.046     1.362 r  u_sequencer/p_0_in1_in0/DSP_M_DATA_INST/V_DATA[10]
+                         net (fo=1, routed)           0.000     1.362    u_sequencer/p_0_in1_in0/DSP_M_DATA.V_DATA<10>
+    DSP48E2_X14Y246      DSP_ALU (Prop_DSP_ALU_DSP48E2_V_DATA[10]_ALU_OUT[10])
+                                                      0.571     1.933 f  u_sequencer/p_0_in1_in0/DSP_ALU_INST/ALU_OUT[10]
+                         net (fo=1, routed)           0.000     1.933    u_sequencer/p_0_in1_in0/DSP_ALU.ALU_OUT<10>
+    DSP48E2_X14Y246      DSP_OUTPUT (Prop_DSP_OUTPUT_DSP48E2_ALU_OUT[10]_P[10])
+                                                      0.109     2.042 r  u_sequencer/p_0_in1_in0/DSP_OUTPUT_INST/P[10]
+                         net (fo=4, routed)           0.210     2.252    u_pilot_regs/P[2]
+    SLICE_X107Y631       LUT2 (Prop_C6LUT_SLICEM_I1_O)
+                                                      0.051     2.303 r  u_pilot_regs/p_2_out_carry_i_6/O
+                         net (fo=1, routed)           0.021     2.324    u_sequencer/dac_data_reg[0][7]_0[2]
+    SLICE_X107Y631       CARRY8 (Prop_CARRY8_SLICEM_S[2]_O[6])
+                                                      0.188     2.512 r  u_sequencer/p_2_out_carry/O[6]
+                         net (fo=1, routed)           0.262     2.774    u_pilot_regs/O[2]
+    SLICE_X108Y632       LUT5 (Prop_C6LUT_SLICEL_I2_O)
+                                                      0.096     2.870 r  u_pilot_regs/dac_data[0][6]_i_1/O
+                         net (fo=1, routed)           0.050     2.920    u_sequencer/D[2]
+    SLICE_X108Y632       FDCE                                         r  u_sequencer/dac_data_reg[0][6]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock user_clk rise edge)
+                                                      3.333     3.333 r  
+                                                      0.000     3.333 r  user_clk (IN)
+                         net (fo=697, unset)          0.020     3.353    u_sequencer/user_clk
+    SLICE_X108Y632       FDCE                                         r  u_sequencer/dac_data_reg[0][6]/C
+                         clock pessimism              0.000     3.353    
+                         clock uncertainty           -0.035     3.318    
+    SLICE_X108Y632       FDCE (Setup_CFF_SLICEL_C_D)
+                                                      0.025     3.343    u_sequencer/dac_data_reg[0][6]
+  -------------------------------------------------------------------
+                         required time                          3.343    
+                         arrival time                          -2.920    
+  -------------------------------------------------------------------
+                         slack                                  0.422    
+
+Slack (MET) :             0.426ns  (required time - arrival time)
+  Source:                 u_pilot_regs/r_trim_ch0_reg[4]/C
+                            (rising edge-triggered cell FDPE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Destination:            u_sequencer/dac_data_reg[0][7]/D
+                            (rising edge-triggered cell FDCE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Path Group:             user_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            3.333ns  (user_clk rise@3.333ns - user_clk rise@0.000ns)
+  Data Path Delay:        2.886ns  (logic 2.038ns (70.609%)  route 0.848ns (29.391%))
+  Logic Levels:           9  (CARRY8=1 DSP_A_B_DATA=1 DSP_ALU=1 DSP_M_DATA=1 DSP_MULTIPLIER=1 DSP_OUTPUT=1 DSP_PREADD_DATA=1 LUT2=1 LUT5=1)
+  Clock Path Skew:        -0.010ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.020ns = ( 3.353 - 3.333 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock user_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  user_clk (IN)
+                         net (fo=697, unset)          0.030     0.030    u_pilot_regs/user_clk
+    SLICE_X107Y630       FDPE                                         r  u_pilot_regs/r_trim_ch0_reg[4]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X107Y630       FDPE (Prop_EFF_SLICEM_C_Q)
+                                                      0.076     0.106 f  u_pilot_regs/r_trim_ch0_reg[4]/Q
+                         net (fo=2, routed)           0.377     0.483    u_sequencer/p_0_in1_in0/B[4]
+    DSP48E2_X14Y246      DSP_A_B_DATA (Prop_DSP_A_B_DATA_DSP48E2_B[4]_B2_DATA[4])
+                                                      0.151     0.634 r  u_sequencer/p_0_in1_in0/DSP_A_B_DATA_INST/B2_DATA[4]
+                         net (fo=1, routed)           0.000     0.634    u_sequencer/p_0_in1_in0/DSP_A_B_DATA.B2_DATA<4>
+    DSP48E2_X14Y246      DSP_PREADD_DATA (Prop_DSP_PREADD_DATA_DSP48E2_B2_DATA[4]_B2B1[4])
+                                                      0.073     0.707 r  u_sequencer/p_0_in1_in0/DSP_PREADD_DATA_INST/B2B1[4]
+                         net (fo=1, routed)           0.000     0.707    u_sequencer/p_0_in1_in0/DSP_PREADD_DATA.B2B1<4>
+    DSP48E2_X14Y246      DSP_MULTIPLIER (Prop_DSP_MULTIPLIER_DSP48E2_B2B1[4]_V[10])
+                                                      0.609     1.316 f  u_sequencer/p_0_in1_in0/DSP_MULTIPLIER_INST/V[10]
+                         net (fo=1, routed)           0.000     1.316    u_sequencer/p_0_in1_in0/DSP_MULTIPLIER.V<10>
+    DSP48E2_X14Y246      DSP_M_DATA (Prop_DSP_M_DATA_DSP48E2_V[10]_V_DATA[10])
+                                                      0.046     1.362 r  u_sequencer/p_0_in1_in0/DSP_M_DATA_INST/V_DATA[10]
+                         net (fo=1, routed)           0.000     1.362    u_sequencer/p_0_in1_in0/DSP_M_DATA.V_DATA<10>
+    DSP48E2_X14Y246      DSP_ALU (Prop_DSP_ALU_DSP48E2_V_DATA[10]_ALU_OUT[10])
+                                                      0.571     1.933 f  u_sequencer/p_0_in1_in0/DSP_ALU_INST/ALU_OUT[10]
+                         net (fo=1, routed)           0.000     1.933    u_sequencer/p_0_in1_in0/DSP_ALU.ALU_OUT<10>
+    DSP48E2_X14Y246      DSP_OUTPUT (Prop_DSP_OUTPUT_DSP48E2_ALU_OUT[10]_P[10])
+                                                      0.109     2.042 r  u_sequencer/p_0_in1_in0/DSP_OUTPUT_INST/P[10]
+                         net (fo=4, routed)           0.210     2.252    u_pilot_regs/P[2]
+    SLICE_X107Y631       LUT2 (Prop_C6LUT_SLICEM_I1_O)
+                                                      0.051     2.303 r  u_pilot_regs/p_2_out_carry_i_6/O
+                         net (fo=1, routed)           0.021     2.324    u_sequencer/dac_data_reg[0][7]_0[2]
+    SLICE_X107Y631       CARRY8 (Prop_CARRY8_SLICEM_S[2]_O[7])
+                                                      0.202     2.526 r  u_sequencer/p_2_out_carry/O[7]
+                         net (fo=1, routed)           0.189     2.715    u_pilot_regs/O[3]
+    SLICE_X108Y632       LUT5 (Prop_H6LUT_SLICEL_I2_O)
+                                                      0.150     2.865 r  u_pilot_regs/dac_data[0][7]_i_1/O
+                         net (fo=1, routed)           0.051     2.916    u_sequencer/D[3]
+    SLICE_X108Y632       FDCE                                         r  u_sequencer/dac_data_reg[0][7]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock user_clk rise edge)
+                                                      3.333     3.333 r  
+                                                      0.000     3.333 r  user_clk (IN)
+                         net (fo=697, unset)          0.020     3.353    u_sequencer/user_clk
+    SLICE_X108Y632       FDCE                                         r  u_sequencer/dac_data_reg[0][7]/C
+                         clock pessimism              0.000     3.353    
+                         clock uncertainty           -0.035     3.318    
+    SLICE_X108Y632       FDCE (Setup_HFF_SLICEL_C_D)
+                                                      0.025     3.343    u_sequencer/dac_data_reg[0][7]
+  -------------------------------------------------------------------
+                         required time                          3.343    
+                         arrival time                          -2.916    
+  -------------------------------------------------------------------
+                         slack                                  0.426    
+
+Slack (MET) :             0.428ns  (required time - arrival time)
+  Source:                 u_pilot_regs/r_trim_ch6_reg[5]/C
+                            (rising edge-triggered cell FDPE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Destination:            u_sequencer/dac_data_reg[6][7]/D
+                            (rising edge-triggered cell FDCE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Path Group:             user_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            3.333ns  (user_clk rise@3.333ns - user_clk rise@0.000ns)
+  Data Path Delay:        2.885ns  (logic 2.022ns (70.076%)  route 0.863ns (29.924%))
+  Logic Levels:           9  (CARRY8=1 DSP_A_B_DATA=1 DSP_ALU=1 DSP_M_DATA=1 DSP_MULTIPLIER=1 DSP_OUTPUT=1 DSP_PREADD_DATA=1 LUT4=1 LUT5=1)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.021ns = ( 3.354 - 3.333 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock user_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  user_clk (IN)
+                         net (fo=697, unset)          0.030     0.030    u_pilot_regs/user_clk
+    SLICE_X114Y630       FDPE                                         r  u_pilot_regs/r_trim_ch6_reg[5]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X114Y630       FDPE (Prop_CFF2_SLICEM_C_Q)
+                                                      0.077     0.107 f  u_pilot_regs/r_trim_ch6_reg[5]/Q
+                         net (fo=2, routed)           0.279     0.386    u_sequencer/p_0_in1_in0__5/B[5]
+    DSP48E2_X15Y246      DSP_A_B_DATA (Prop_DSP_A_B_DATA_DSP48E2_B[5]_B2_DATA[5])
+                                                      0.151     0.537 r  u_sequencer/p_0_in1_in0__5/DSP_A_B_DATA_INST/B2_DATA[5]
+                         net (fo=1, routed)           0.000     0.537    u_sequencer/p_0_in1_in0__5/DSP_A_B_DATA.B2_DATA<5>
+    DSP48E2_X15Y246      DSP_PREADD_DATA (Prop_DSP_PREADD_DATA_DSP48E2_B2_DATA[5]_B2B1[5])
+                                                      0.073     0.610 r  u_sequencer/p_0_in1_in0__5/DSP_PREADD_DATA_INST/B2B1[5]
+                         net (fo=1, routed)           0.000     0.610    u_sequencer/p_0_in1_in0__5/DSP_PREADD_DATA.B2B1<5>
+    DSP48E2_X15Y246      DSP_MULTIPLIER (Prop_DSP_MULTIPLIER_DSP48E2_B2B1[5]_V[10])
+                                                      0.609     1.219 f  u_sequencer/p_0_in1_in0__5/DSP_MULTIPLIER_INST/V[10]
+                         net (fo=1, routed)           0.000     1.219    u_sequencer/p_0_in1_in0__5/DSP_MULTIPLIER.V<10>
+    DSP48E2_X15Y246      DSP_M_DATA (Prop_DSP_M_DATA_DSP48E2_V[10]_V_DATA[10])
+                                                      0.046     1.265 r  u_sequencer/p_0_in1_in0__5/DSP_M_DATA_INST/V_DATA[10]
+                         net (fo=1, routed)           0.000     1.265    u_sequencer/p_0_in1_in0__5/DSP_M_DATA.V_DATA<10>
+    DSP48E2_X15Y246      DSP_ALU (Prop_DSP_ALU_DSP48E2_V_DATA[10]_ALU_OUT[10])
+                                                      0.571     1.836 f  u_sequencer/p_0_in1_in0__5/DSP_ALU_INST/ALU_OUT[10]
+                         net (fo=1, routed)           0.000     1.836    u_sequencer/p_0_in1_in0__5/DSP_ALU.ALU_OUT<10>
+    DSP48E2_X15Y246      DSP_OUTPUT (Prop_DSP_OUTPUT_DSP48E2_ALU_OUT[10]_P[10])
+                                                      0.109     1.945 r  u_sequencer/p_0_in1_in0__5/DSP_OUTPUT_INST/P[10]
+                         net (fo=4, routed)           0.214     2.159    u_sequencer/DSP_ALU_INST_4[2]
+    SLICE_X115Y631       LUT4 (Prop_B6LUT_SLICEM_I2_O)
+                                                      0.089     2.248 r  u_sequencer/i__carry_i_11__5/O
+                         net (fo=1, routed)           0.016     2.264    u_sequencer/i__carry_i_11__5_n_0
+    SLICE_X115Y631       CARRY8 (Prop_CARRY8_SLICEM_S[1]_CO[5])
+                                                      0.199     2.463 r  u_sequencer/p_0_out_inferred__6/i__carry/CO[5]
+                         net (fo=12, routed)          0.289     2.751    u_pilot_regs/dac_data_reg[6][11][0]
+    SLICE_X115Y628       LUT5 (Prop_C6LUT_SLICEM_I3_O)
+                                                      0.098     2.849 r  u_pilot_regs/dac_data[6][7]_i_1/O
+                         net (fo=1, routed)           0.066     2.915    u_sequencer/dac_data_reg[6][11]_1[3]
+    SLICE_X115Y628       FDCE                                         r  u_sequencer/dac_data_reg[6][7]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock user_clk rise edge)
+                                                      3.333     3.333 r  
+                                                      0.000     3.333 r  user_clk (IN)
+                         net (fo=697, unset)          0.021     3.354    u_sequencer/user_clk
+    SLICE_X115Y628       FDCE                                         r  u_sequencer/dac_data_reg[6][7]/C
+                         clock pessimism              0.000     3.354    
+                         clock uncertainty           -0.035     3.319    
+    SLICE_X115Y628       FDCE (Setup_CFF_SLICEM_C_D)
+                                                      0.025     3.344    u_sequencer/dac_data_reg[6][7]
+  -------------------------------------------------------------------
+                         required time                          3.344    
+                         arrival time                          -2.915    
+  -------------------------------------------------------------------
+                         slack                                  0.428    
+
+Slack (MET) :             0.437ns  (required time - arrival time)
+  Source:                 u_pilot_regs/r_trim_ch2_reg[4]/C
+                            (rising edge-triggered cell FDPE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Destination:            u_sequencer/dac_data_reg[2][11]/D
+                            (rising edge-triggered cell FDCE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Path Group:             user_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            3.333ns  (user_clk rise@3.333ns - user_clk rise@0.000ns)
+  Data Path Delay:        2.876ns  (logic 2.065ns (71.791%)  route 0.811ns (28.209%))
+  Logic Levels:           10  (CARRY8=2 DSP_A_B_DATA=1 DSP_ALU=1 DSP_M_DATA=1 DSP_MULTIPLIER=1 DSP_OUTPUT=1 DSP_PREADD_DATA=1 LUT2=1 LUT5=1)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.021ns = ( 3.354 - 3.333 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock user_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  user_clk (IN)
+                         net (fo=697, unset)          0.030     0.030    u_pilot_regs/user_clk
+    SLICE_X114Y635       FDPE                                         r  u_pilot_regs/r_trim_ch2_reg[4]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X114Y635       FDPE (Prop_FFF2_SLICEM_C_Q)
+                                                      0.079     0.109 f  u_pilot_regs/r_trim_ch2_reg[4]/Q
+                         net (fo=2, routed)           0.252     0.361    u_sequencer/p_0_in1_in0__1/B[4]
+    DSP48E2_X15Y248      DSP_A_B_DATA (Prop_DSP_A_B_DATA_DSP48E2_B[4]_B2_DATA[4])
+                                                      0.151     0.512 r  u_sequencer/p_0_in1_in0__1/DSP_A_B_DATA_INST/B2_DATA[4]
+                         net (fo=1, routed)           0.000     0.512    u_sequencer/p_0_in1_in0__1/DSP_A_B_DATA.B2_DATA<4>
+    DSP48E2_X15Y248      DSP_PREADD_DATA (Prop_DSP_PREADD_DATA_DSP48E2_B2_DATA[4]_B2B1[4])
+                                                      0.073     0.585 r  u_sequencer/p_0_in1_in0__1/DSP_PREADD_DATA_INST/B2B1[4]
+                         net (fo=1, routed)           0.000     0.585    u_sequencer/p_0_in1_in0__1/DSP_PREADD_DATA.B2B1<4>
+    DSP48E2_X15Y248      DSP_MULTIPLIER (Prop_DSP_MULTIPLIER_DSP48E2_B2B1[4]_V[8])
+                                                      0.609     1.194 f  u_sequencer/p_0_in1_in0__1/DSP_MULTIPLIER_INST/V[8]
+                         net (fo=1, routed)           0.000     1.194    u_sequencer/p_0_in1_in0__1/DSP_MULTIPLIER.V<8>
+    DSP48E2_X15Y248      DSP_M_DATA (Prop_DSP_M_DATA_DSP48E2_V[8]_V_DATA[8])
+                                                      0.046     1.240 r  u_sequencer/p_0_in1_in0__1/DSP_M_DATA_INST/V_DATA[8]
+                         net (fo=1, routed)           0.000     1.240    u_sequencer/p_0_in1_in0__1/DSP_M_DATA.V_DATA<8>
+    DSP48E2_X15Y248      DSP_ALU (Prop_DSP_ALU_DSP48E2_V_DATA[8]_ALU_OUT[8])
+                                                      0.571     1.811 f  u_sequencer/p_0_in1_in0__1/DSP_ALU_INST/ALU_OUT[8]
+                         net (fo=1, routed)           0.000     1.811    u_sequencer/p_0_in1_in0__1/DSP_ALU.ALU_OUT<8>
+    DSP48E2_X15Y248      DSP_OUTPUT (Prop_DSP_OUTPUT_DSP48E2_ALU_OUT[8]_P[8])
+                                                      0.109     1.920 r  u_sequencer/p_0_in1_in0__1/DSP_OUTPUT_INST/P[8]
+                         net (fo=4, routed)           0.265     2.185    u_sequencer/DSP_ALU_INST_0[0]
+    SLICE_X115Y633       LUT2 (Prop_A6LUT_SLICEM_I0_O)
+                                                      0.100     2.285 r  u_sequencer/i__carry_i_8__8/O
+                         net (fo=1, routed)           0.013     2.298    u_sequencer/i__carry_i_8__8_n_0
+    SLICE_X115Y633       CARRY8 (Prop_CARRY8_SLICEM_S[0]_CO[7])
+                                                      0.192     2.490 r  u_sequencer/p_2_out_inferred__1/i__carry/CO[7]
+                         net (fo=1, routed)           0.026     2.516    u_sequencer/p_2_out_inferred__1/i__carry_n_0
+    SLICE_X115Y634       CARRY8 (Prop_CARRY8_SLICEM_CI_O[3])
+                                                      0.082     2.598 r  u_sequencer/p_2_out_inferred__1/i__carry__0/O[3]
+                         net (fo=1, routed)           0.197     2.795    u_pilot_regs/dac_data_reg[2][11][3]
+    SLICE_X114Y634       LUT5 (Prop_H6LUT_SLICEM_I2_O)
+                                                      0.053     2.848 r  u_pilot_regs/dac_data[2][11]_i_1/O
+                         net (fo=1, routed)           0.058     2.906    u_sequencer/dac_data_reg[2][11]_1[7]
+    SLICE_X114Y634       FDCE                                         r  u_sequencer/dac_data_reg[2][11]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock user_clk rise edge)
+                                                      3.333     3.333 r  
+                                                      0.000     3.333 r  user_clk (IN)
+                         net (fo=697, unset)          0.021     3.354    u_sequencer/user_clk
+    SLICE_X114Y634       FDCE                                         r  u_sequencer/dac_data_reg[2][11]/C
+                         clock pessimism              0.000     3.354    
+                         clock uncertainty           -0.035     3.319    
+    SLICE_X114Y634       FDCE (Setup_HFF_SLICEM_C_D)
+                                                      0.025     3.344    u_sequencer/dac_data_reg[2][11]
+  -------------------------------------------------------------------
+                         required time                          3.344    
+                         arrival time                          -2.906    
+  -------------------------------------------------------------------
+                         slack                                  0.437    
+
+Slack (MET) :             0.439ns  (required time - arrival time)
+  Source:                 u_pilot_regs/r_trim_ch0_reg[4]/C
+                            (rising edge-triggered cell FDPE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Destination:            u_sequencer/dac_data_reg[0][11]/D
+                            (rising edge-triggered cell FDCE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Path Group:             user_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            3.333ns  (user_clk rise@3.333ns - user_clk rise@0.000ns)
+  Data Path Delay:        2.873ns  (logic 2.019ns (70.267%)  route 0.854ns (29.733%))
+  Logic Levels:           10  (CARRY8=2 DSP_A_B_DATA=1 DSP_ALU=1 DSP_M_DATA=1 DSP_MULTIPLIER=1 DSP_OUTPUT=1 DSP_PREADD_DATA=1 LUT2=1 LUT5=1)
+  Clock Path Skew:        -0.010ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.020ns = ( 3.353 - 3.333 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock user_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  user_clk (IN)
+                         net (fo=697, unset)          0.030     0.030    u_pilot_regs/user_clk
+    SLICE_X107Y630       FDPE                                         r  u_pilot_regs/r_trim_ch0_reg[4]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X107Y630       FDPE (Prop_EFF_SLICEM_C_Q)
+                                                      0.076     0.106 f  u_pilot_regs/r_trim_ch0_reg[4]/Q
+                         net (fo=2, routed)           0.377     0.483    u_sequencer/p_0_in1_in0/B[4]
+    DSP48E2_X14Y246      DSP_A_B_DATA (Prop_DSP_A_B_DATA_DSP48E2_B[4]_B2_DATA[4])
+                                                      0.151     0.634 r  u_sequencer/p_0_in1_in0/DSP_A_B_DATA_INST/B2_DATA[4]
+                         net (fo=1, routed)           0.000     0.634    u_sequencer/p_0_in1_in0/DSP_A_B_DATA.B2_DATA<4>
+    DSP48E2_X14Y246      DSP_PREADD_DATA (Prop_DSP_PREADD_DATA_DSP48E2_B2_DATA[4]_B2B1[4])
+                                                      0.073     0.707 r  u_sequencer/p_0_in1_in0/DSP_PREADD_DATA_INST/B2B1[4]
+                         net (fo=1, routed)           0.000     0.707    u_sequencer/p_0_in1_in0/DSP_PREADD_DATA.B2B1<4>
+    DSP48E2_X14Y246      DSP_MULTIPLIER (Prop_DSP_MULTIPLIER_DSP48E2_B2B1[4]_V[10])
+                                                      0.609     1.316 f  u_sequencer/p_0_in1_in0/DSP_MULTIPLIER_INST/V[10]
+                         net (fo=1, routed)           0.000     1.316    u_sequencer/p_0_in1_in0/DSP_MULTIPLIER.V<10>
+    DSP48E2_X14Y246      DSP_M_DATA (Prop_DSP_M_DATA_DSP48E2_V[10]_V_DATA[10])
+                                                      0.046     1.362 r  u_sequencer/p_0_in1_in0/DSP_M_DATA_INST/V_DATA[10]
+                         net (fo=1, routed)           0.000     1.362    u_sequencer/p_0_in1_in0/DSP_M_DATA.V_DATA<10>
+    DSP48E2_X14Y246      DSP_ALU (Prop_DSP_ALU_DSP48E2_V_DATA[10]_ALU_OUT[10])
+                                                      0.571     1.933 f  u_sequencer/p_0_in1_in0/DSP_ALU_INST/ALU_OUT[10]
+                         net (fo=1, routed)           0.000     1.933    u_sequencer/p_0_in1_in0/DSP_ALU.ALU_OUT<10>
+    DSP48E2_X14Y246      DSP_OUTPUT (Prop_DSP_OUTPUT_DSP48E2_ALU_OUT[10]_P[10])
+                                                      0.109     2.042 r  u_sequencer/p_0_in1_in0/DSP_OUTPUT_INST/P[10]
+                         net (fo=4, routed)           0.210     2.252    u_pilot_regs/P[2]
+    SLICE_X107Y631       LUT2 (Prop_C6LUT_SLICEM_I1_O)
+                                                      0.051     2.303 r  u_pilot_regs/p_2_out_carry_i_6/O
+                         net (fo=1, routed)           0.021     2.324    u_sequencer/dac_data_reg[0][7]_0[2]
+    SLICE_X107Y631       CARRY8 (Prop_CARRY8_SLICEM_S[2]_CO[7])
+                                                      0.161     2.485 r  u_sequencer/p_2_out_carry/CO[7]
+                         net (fo=1, routed)           0.026     2.511    u_sequencer/p_2_out_carry_n_0
+    SLICE_X107Y632       CARRY8 (Prop_CARRY8_SLICEM_CI_O[3])
+                                                      0.082     2.593 r  u_sequencer/p_2_out_carry__0/O[3]
+                         net (fo=1, routed)           0.172     2.765    u_pilot_regs/dac_data_reg[0][11][3]
+    SLICE_X108Y630       LUT5 (Prop_A6LUT_SLICEL_I2_O)
+                                                      0.090     2.855 r  u_pilot_regs/dac_data[0][11]_i_1/O
+                         net (fo=1, routed)           0.048     2.903    u_sequencer/D[7]
+    SLICE_X108Y630       FDCE                                         r  u_sequencer/dac_data_reg[0][11]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock user_clk rise edge)
+                                                      3.333     3.333 r  
+                                                      0.000     3.333 r  user_clk (IN)
+                         net (fo=697, unset)          0.020     3.353    u_sequencer/user_clk
+    SLICE_X108Y630       FDCE                                         r  u_sequencer/dac_data_reg[0][11]/C
+                         clock pessimism              0.000     3.353    
+                         clock uncertainty           -0.035     3.318    
+    SLICE_X108Y630       FDCE (Setup_AFF_SLICEL_C_D)
+                                                      0.025     3.343    u_sequencer/dac_data_reg[0][11]
+  -------------------------------------------------------------------
+                         required time                          3.343    
+                         arrival time                          -2.903    
+  -------------------------------------------------------------------
+                         slack                                  0.439    
+
+Slack (MET) :             0.450ns  (required time - arrival time)
+  Source:                 u_pilot_regs/r_trim_ch3_reg[2]/C
+                            (rising edge-triggered cell FDPE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Destination:            u_sequencer/dac_data_reg[3][1]/D
+                            (rising edge-triggered cell FDCE clocked by user_clk  {rise@0.000ns fall@1.666ns period=3.333ns})
+  Path Group:             user_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            3.333ns  (user_clk rise@3.333ns - user_clk rise@0.000ns)
+  Data Path Delay:        2.864ns  (logic 2.075ns (72.456%)  route 0.789ns (27.544%))
+  Logic Levels:           9  (CARRY8=1 DSP_A_B_DATA=1 DSP_ALU=1 DSP_M_DATA=1 DSP_MULTIPLIER=1 DSP_OUTPUT=1 DSP_PREADD_DATA=1 LUT3=1 LUT4=1)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.021ns = ( 3.354 - 3.333 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock user_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  user_clk (IN)
+                         net (fo=697, unset)          0.030     0.030    u_pilot_regs/user_clk
+    SLICE_X114Y632       FDPE                                         r  u_pilot_regs/r_trim_ch3_reg[2]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X114Y632       FDPE (Prop_GFF2_SLICEM_C_Q)
+                                                      0.079     0.109 f  u_pilot_regs/r_trim_ch3_reg[2]/Q
+                         net (fo=2, routed)           0.276     0.385    u_sequencer/p_0_in1_in0__2/B[2]
+    DSP48E2_X15Y247      DSP_A_B_DATA (Prop_DSP_A_B_DATA_DSP48E2_B[2]_B2_DATA[2])
+                                                      0.151     0.536 r  u_sequencer/p_0_in1_in0__2/DSP_A_B_DATA_INST/B2_DATA[2]
+                         net (fo=1, routed)           0.000     0.536    u_sequencer/p_0_in1_in0__2/DSP_A_B_DATA.B2_DATA<2>
+    DSP48E2_X15Y247      DSP_PREADD_DATA (Prop_DSP_PREADD_DATA_DSP48E2_B2_DATA[2]_B2B1[2])
+                                                      0.073     0.609 r  u_sequencer/p_0_in1_in0__2/DSP_PREADD_DATA_INST/B2B1[2]
+                         net (fo=1, routed)           0.000     0.609    u_sequencer/p_0_in1_in0__2/DSP_PREADD_DATA.B2B1<2>
+    DSP48E2_X15Y247      DSP_MULTIPLIER (Prop_DSP_MULTIPLIER_DSP48E2_B2B1[2]_V[13])
+                                                      0.609     1.218 f  u_sequencer/p_0_in1_in0__2/DSP_MULTIPLIER_INST/V[13]
+                         net (fo=1, routed)           0.000     1.218    u_sequencer/p_0_in1_in0__2/DSP_MULTIPLIER.V<13>
+    DSP48E2_X15Y247      DSP_M_DATA (Prop_DSP_M_DATA_DSP48E2_V[13]_V_DATA[13])
+                                                      0.046     1.264 r  u_sequencer/p_0_in1_in0__2/DSP_M_DATA_INST/V_DATA[13]
+                         net (fo=1, routed)           0.000     1.264    u_sequencer/p_0_in1_in0__2/DSP_M_DATA.V_DATA<13>
+    DSP48E2_X15Y247      DSP_ALU (Prop_DSP_ALU_DSP48E2_V_DATA[13]_ALU_OUT[13])
+                                                      0.571     1.835 f  u_sequencer/p_0_in1_in0__2/DSP_ALU_INST/ALU_OUT[13]
+                         net (fo=1, routed)           0.000     1.835    u_sequencer/p_0_in1_in0__2/DSP_ALU.ALU_OUT<13>
+    DSP48E2_X15Y247      DSP_OUTPUT (Prop_DSP_OUTPUT_DSP48E2_ALU_OUT[13]_P[13])
+                                                      0.109     1.944 r  u_sequencer/p_0_in1_in0__2/DSP_OUTPUT_INST/P[13]
+                         net (fo=4, routed)           0.254     2.198    u_sequencer/DSP_ALU_INST_1[5]
+    SLICE_X114Y631       LUT4 (Prop_C6LUT_SLICEM_I0_O)
+                                                      0.123     2.321 r  u_sequencer/i__carry_i_10__2/O
+                         net (fo=1, routed)           0.021     2.342    u_sequencer/i__carry_i_10__2_n_0
+    SLICE_X114Y631       CARRY8 (Prop_CARRY8_SLICEM_S[2]_CO[5])
+                                                      0.162     2.504 r  u_sequencer/p_0_out_inferred__3/i__carry/CO[5]
+                         net (fo=12, routed)          0.180     2.684    u_sequencer/r_dark_offset_reg[10]_1[0]
+    SLICE_X114Y630       LUT3 (Prop_H6LUT_SLICEM_I1_O)
+                                                      0.152     2.836 r  u_sequencer/dac_data[3][1]_i_1/O
+                         net (fo=1, routed)           0.058     2.894    u_sequencer/dac_packed[3]_3[1]
+    SLICE_X114Y630       FDCE                                         r  u_sequencer/dac_data_reg[3][1]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock user_clk rise edge)
+                                                      3.333     3.333 r  
+                                                      0.000     3.333 r  user_clk (IN)
+                         net (fo=697, unset)          0.021     3.354    u_sequencer/user_clk
+    SLICE_X114Y630       FDCE                                         r  u_sequencer/dac_data_reg[3][1]/C
+                         clock pessimism              0.000     3.354    
+                         clock uncertainty           -0.035     3.319    
+    SLICE_X114Y630       FDCE (Setup_HFF_SLICEM_C_D)
+                                                      0.025     3.344    u_sequencer/dac_data_reg[3][1]
+  -------------------------------------------------------------------
+                         required time                          3.344    
+                         arrival time                          -2.894    
+  -------------------------------------------------------------------
+                         slack                                  0.450    
+
+
+
+
