@@ -50,7 +50,10 @@
 
 `include "VX_define.vh"
 
-module VX_tcu_shim_q1714 import VX_gpu_pkg::*, VX_tcu_pkg::*; #(
+// Bit-exact conversion arithmetic lives in a dependency-free package so it is
+// one source of truth with tb/tb_VX_tcu_q1714_convert.sv.
+module VX_tcu_shim_q1714 import VX_gpu_pkg::*, VX_tcu_pkg::*,
+                                 VX_tcu_q1714_convert_pkg::*; #(
     parameter `STRING INSTANCE_ID = "",
     parameter NUM_LANES = TCU_TC_M * TCU_TC_N,   // PE words per result beat
     parameter TID_W     = 4,
@@ -82,112 +85,10 @@ module VX_tcu_shim_q1714 import VX_gpu_pkg::*, VX_tcu_pkg::*; #(
     // the thread-lane -> optical-lane map from vortex_integration_notes.md §9.
     `STATIC_ASSERT (NUM_LANES <= 16, ("NUM_LANES exceeds TUSER.cell_lane width"))
 
-    localparam logic [31:0] Q_MAX = 32'h7FFF_FFFF;
-    localparam logic [31:0] Q_MIN = 32'h8000_0000;
-
-    // =========================================================================
-    // 32-bit writeback word -> Q17.14. Pure combinational; one instance, time-
-    // shared across lanes by the load FSM below.
-    // =========================================================================
-    function automatic logic round_up_rne (input logic guard,
-                                           input logic sticky,
-                                           input logic lsb);
-        // round-to-nearest-even; TRUNC mode never rounds
-        round_up_rne = (SHIM_ROUND == "TRUNC") ? 1'b0
-                     : (guard && (sticky || lsb));
-    endfunction
-
-    // returns {nan, ovf, q[31:0]}
-    function automatic logic [33:0] conv_word (input logic [31:0] w,
-                                               input logic        is_int,
-                                               input logic [5:0]  presc);
-        logic        s;
-        logic [7:0]  e;
-        logic [22:0] man;
-        logic [23:0] mant24;
-        logic signed [8:0] kexp;          // e - 136
-        logic [63:0] wide;
-        logic [31:0] mag;
-        logic        guard, sticky, ovf, nan;
-        logic [31:0] q;
-        logic signed [7:0] ns;            // net left shift for int path
-        logic signed [63:0] iv_ext;
-        integer r;
-        begin
-            ovf = 1'b0; nan = 1'b0; q = 32'd0;
-
-            if (is_int) begin
-                // ---- int32 -> Q17.14 ---------------------------------------
-                ns     = 8'sd14 - $signed({2'b00, presc});      // 14 - prescale
-                iv_ext = {{32{w[31]}}, w};                      // sign-extend to 64b
-                if (ns >= 0) begin
-                    wide = $unsigned(iv_ext <<< ns);
-                    // saturate to 32-bit signed
-                    if ($signed(iv_ext <<< ns) > $signed(64'sd2147483647)) begin
-                        q = Q_MAX; ovf = 1'b1;
-                    end else if ($signed(iv_ext <<< ns) < $signed(-64'sd2147483648)) begin
-                        q = Q_MIN; ovf = 1'b1;
-                    end else begin
-                        q = wide[31:0];
-                    end
-                end else begin
-                    r      = -ns;
-                    guard  = (r >= 1 && r <= 64) ? iv_ext[r-1] : 1'b0;
-                    sticky = ((iv_ext & ((64'd1 << (r-1)) - 64'd1)) != 0);
-                    q      = $signed(iv_ext >>> r)
-                             + (round_up_rne(guard, sticky, iv_ext[r]) ? 32'sd1 : 32'sd0);
-                end
-            end else begin
-                // ---- fp32 -> Q17.14 --------------------------------------
-                s   = w[31];
-                e   = w[30:23];
-                man = w[22:0];
-
-                if (e == 8'hFF) begin
-                    nan = 1'b1;
-                    q   = s ? Q_MIN : Q_MAX;                     // saturate; pilot drops
-                end else if (e == 8'h00) begin
-                    q   = 32'd0;                                 // zero / subnormal << LSB
-                end else begin
-                    mant24 = {1'b1, man};                        // 1.man * 2^23
-                    // value * 2^14 = mant24 * 2^(e-136)
-                    kexp = $signed({1'b0, e}) - 9'sd136;
-
-                    if (kexp >= 0) begin
-                        if (kexp >= 8) begin
-                            q = s ? Q_MIN : Q_MAX; ovf = 1'b1;   // mant24<<8 >= 2^31
-                        end else begin
-                            wide = ({40'd0, mant24} << kexp);
-                            if (wide > 64'(Q_MAX)) begin
-                                q = s ? Q_MIN : Q_MAX; ovf = 1'b1;
-                            end else begin
-                                mag = wide[31:0];
-                                q   = s ? (~mag + 32'd1) : mag;
-                            end
-                        end
-                    end else begin
-                        r      = -kexp;
-                        if (r >= 24) begin
-                            // whole significand is below the guard bit; only a
-                            // round-up from the implicit-1 guard can survive
-                            guard  = (r == 24) ? mant24[23] : 1'b0;
-                            sticky = (r == 24) ? (mant24[22:0] != 0)
-                                               : (mant24 != 0);
-                            mag    = round_up_rne(guard, sticky, 1'b0) ? 32'd1 : 32'd0;
-                        end else begin
-                            guard  = mant24[r-1];
-                            sticky = ((mant24 & ((24'd1 << (r-1)) - 24'd1)) != 0);
-                            mag    = (mant24 >> r)
-                                     + (round_up_rne(guard, sticky, mant24[r]) ? 32'd1 : 32'd0);
-                        end
-                        q = s ? (~mag + 32'd1) : mag;
-                    end
-                end
-            end
-
-            conv_word = {nan, ovf, q};
-        end
-    endfunction
+    // Conversion arithmetic (fp32/int32 -> Q17.14) is in the dependency-free
+    // package VX_tcu_q1714_convert_pkg, shared bit-for-bit with
+    // tb/tb_VX_tcu_q1714_convert.sv. round_trunc = floor instead of rne.
+    localparam bit RND_TRUNC = (SHIM_ROUND == "TRUNC");
 
     // =========================================================================
     // Load FSM: on a tile-final result beat, latch the NUM_LANES words + fmt_d,
@@ -214,7 +115,7 @@ module VX_tcu_shim_q1714 import VX_gpu_pkg::*, VX_tcu_pkg::*; #(
     assign result_if.ready = (state == S_IDLE) && (~is_tile_final || egr_room_for_record);
     // non-tile-final beats: accepted and dropped (ready high, no load)
 
-    wire [33:0] conv = conv_word(lane_w_r[lane_ctr[LANE_W-1:0]], is_int_r, presc_r);
+    wire [33:0] conv = conv_word(lane_w_r[lane_ctr[LANE_W-1:0]], is_int_r, presc_r, RND_TRUNC);
     wire        conv_nan = conv[33];
     wire        conv_ovf = conv[32];
     wire [31:0] conv_q   = conv[31:0];
