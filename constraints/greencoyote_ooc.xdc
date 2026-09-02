@@ -18,11 +18,12 @@
 # Primary user clock from the Alveo U55C shell — 300 MHz (3.333 ns)
 create_clock -period 3.333 -name user_clk [get_ports user_clk]
 
-# Treat the asynchronous ADC capture interface as unconstrained for the OOC
-# baseline (the real design gates it through a 2-FF synchronizer; a proper
-# set_false_path lives in greencoyote_bay.xdc for implementation).
-set_input_delay  -clock user_clk 0.000 [get_ports {adc_data[*] adc_valid}]
+# adc_data / adc_valid arrive on the ADC conversion clock, asynchronous to
+# user_clk. greencoyote_photonic_sequencer brings them across with a 2-flop
+# synchronizer (adc_*_sync_meta -> adc_*_sync). Cut the async arc into that
+# first stage so the crossing is not timed as a real path.
+set_false_path -from [get_ports {adc_data[*] adc_valid}]
 
-# Register-driven slow outputs — give the tool a loose budget rather than
-# leaving them unconstrained in the summary.
+# Register-driven slow output — give the tool a loose budget rather than
+# leaving it unconstrained in the summary.
 set_output_delay -clock user_clk 0.000 [get_ports interrupt]

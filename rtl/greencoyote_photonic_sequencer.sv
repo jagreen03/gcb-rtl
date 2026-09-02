@@ -97,6 +97,34 @@ logic [3:0]  active_channels;       // Count of channels with data
 logic [19:0] trimmed [0:7];
 
 // =============================================================================
+// ADC clock-domain-crossing synchronizers
+// -----------------------------------------------------------------------------
+// adc_data / adc_valid arrive asynchronous to clk (they are driven from the
+// ADC conversion clock). Bring the valid strobe across with a 2-flop
+// synchronizer and pipe the data the same depth so it has settled by the time
+// adc_valid_sync is observed. adc_data must be held stable by the ADC for the
+// duration of adc_valid (standard data/valid handshake) for adc_data_sync to
+// be coherent. The XDC cuts the async arc into the *_sync_meta stage.
+// =============================================================================
+
+(* ASYNC_REG = "TRUE" *) logic        adc_valid_sync_meta, adc_valid_sync;
+(* ASYNC_REG = "TRUE" *) logic [11:0] adc_data_sync_meta,  adc_data_sync;
+
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        adc_valid_sync_meta <= 1'b0;
+        adc_valid_sync      <= 1'b0;
+        adc_data_sync_meta  <= 12'h000;
+        adc_data_sync       <= 12'h000;
+    end else begin
+        adc_valid_sync_meta <= adc_valid;
+        adc_valid_sync      <= adc_valid_sync_meta;
+        adc_data_sync_meta  <= adc_data;
+        adc_data_sync       <= adc_data_sync_meta;
+    end
+end
+
+// =============================================================================
 // Queue depth and queue full logic
 // =============================================================================
 
@@ -214,14 +242,14 @@ always_ff @(posedge clk or negedge rst_n) begin
             end
 
             // -----------------------------------------------------------------
-            // Wait for ADC conversion complete
+            // Wait for ADC conversion complete (synchronized strobe)
             CAPTURE: begin
-                if (adc_valid) begin
+                if (adc_valid_sync) begin
                     // Check for ADC clip — signal integrity fault
-                    if (adc_data >= ADC_CLIP_THRESH) begin
+                    if (adc_data_sync >= ADC_CLIP_THRESH) begin
                         cal_err <= 1'b1;
                     end
-                    pass1a_result <= adc_data;
+                    pass1a_result <= adc_data_sync;
                     state         <= PASS_CHECK;
                 end
             end
@@ -259,12 +287,12 @@ always_ff @(posedge clk or negedge rst_n) begin
 
             // -----------------------------------------------------------------
             CAPTURE2: begin
-                if (adc_valid) begin
-                    if (adc_data >= ADC_CLIP_THRESH)
+                if (adc_valid_sync) begin
+                    if (adc_data_sync >= ADC_CLIP_THRESH)
                         cal_err <= 1'b1;
-                    pass1b_result <= adc_data;
+                    pass1b_result <= adc_data_sync;
                     // Digital Stage 2 sum — no optical needed
-                    pass2_sum     <= {1'b0, pass1a_result} + {1'b0, adc_data};
+                    pass2_sum     <= {1'b0, pass1a_result} + {1'b0, adc_data_sync};
                     pass_index    <= 2'b10;     // Pass 2
                     state         <= DONE;
                 end
