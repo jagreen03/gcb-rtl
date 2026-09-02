@@ -32,6 +32,33 @@ vivado -mode batch -source scripts/build.tcl -tclargs <part> <top> <period_ns>
 
 Exit status: `0` ok · `1` synth error · `2` setup error · `3` negative setup WNS.
 
+## `impl.tcl` — out-of-context place & route
+
+Consumes `build/checkpoints/post_synth.dcp` and runs
+`opt_design → place_design → phys_opt_design → route_design → phys_opt_design`
+in OOC mode, for a real post-route slack number.
+
+```sh
+# after build.tcl
+vivado -mode batch -source scripts/impl.tcl \
+       -log build/logs/impl.log -journal build/logs/impl.jou
+```
+
+Override the input checkpoint with a positional arg or `GCB_SYNTH_DCP`.
+
+### Outputs (`build/`, git-ignored)
+
+| File | |
+|---|---|
+| `checkpoints/post_route.dcp` | routed checkpoint |
+| `reports/timing_route.rpt` | post-route `report_timing_summary` |
+| `reports/timing_route_worst_paths.rpt` | 20 worst paths |
+| `reports/utilization_route.rpt` · `clock_utilization_route.rpt` | |
+| `reports/drc_route.rpt` · `power_route.rpt` | |
+
+Exit status: `0` ok · `1` an impl step failed · `2` setup error ·
+`3` negative post-route setup WNS · `4` negative post-route hold WHS.
+
 ### Constraints
 
 `build.tcl` reads **`constraints/greencoyote_ooc.xdc`** (timing only: the
