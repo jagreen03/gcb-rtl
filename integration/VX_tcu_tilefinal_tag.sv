@@ -52,6 +52,8 @@ module VX_tcu_tilefinal_tag import VX_gpu_pkg::*, VX_tcu_pkg::*; #(
     VX_execute_if.slave  execute_if,        // from lane_dispatch / core_execute_if
     VX_result_if.master  result_if,         // to per_block_result_if / lane_gather
     output wire          is_tile_final,     // aligned to result_if.valid
+    output wire [4:0]    fmt_d_out,         // op_args.tcu.fmt_d, aligned to result_if.valid
+                                            //   (feeds VX_tcu_shim_q1714)
 
     // ---- internal interfaces (face the wrapped VX_tcu_core) ---------------
     VX_execute_if.master execute_core_if,   // -> VX_tcu_core.execute_if
@@ -109,6 +111,7 @@ module VX_tcu_tilefinal_tag import VX_gpu_pkg::*, VX_tcu_pkg::*; #(
 `endif
 
     wire [3:0] step_k     = execute_if.data.op_args.tcu.step_k;
+    wire [4:0] fmt_d      = execute_if.data.op_args.tcu.fmt_d;
     wire       tag_bit_in = (step_k == k_last);          // this uop is a sub-tile final
 
     // VX_tcu_core.sv:148 — fedp_enqueue = execute_fire && !is_wgmma_setup
@@ -137,11 +140,13 @@ module VX_tcu_tilefinal_tag import VX_gpu_pkg::*, VX_tcu_pkg::*; #(
     // Tag FIFO — same depth and OUT_REG as VX_tcu_core.mdata_queue so the tag
     // head tracks result_if.data.header 1:1.
     // -------------------------------------------------------------------------
-    wire tag_q_out;
+    // Sideband carried beside each compute result beat: {fmt_d, tile-final tag}.
+    localparam TAG_W = 1 + 5;
+    wire [TAG_W-1:0] tag_q_out;
     wire tag_q_empty, tag_q_full;
 
     VX_fifo_queue #(
-        .DATAW   (1),
+        .DATAW   (TAG_W),
         .DEPTH   (TAG_QUEUE_DEPTH),
         .OUT_REG (1)
     ) tag_queue (
@@ -149,7 +154,7 @@ module VX_tcu_tilefinal_tag import VX_gpu_pkg::*, VX_tcu_pkg::*; #(
         .reset    (reset),
         .push     (tag_push),
         .pop      (tag_pop),
-        .data_in  (tag_bit_in),
+        .data_in  ({fmt_d, tag_bit_in}),
         .data_out (tag_q_out),
         .empty    (tag_q_empty),
         `UNUSED_PIN (alm_empty),
@@ -158,10 +163,14 @@ module VX_tcu_tilefinal_tag import VX_gpu_pkg::*, VX_tcu_pkg::*; #(
         `UNUSED_PIN (size)
     );
 
+    wire       q_tag   = tag_q_out[0];
+    wire [4:0] q_fmt_d = tag_q_out[5:1];
+
     // A setup beat carries no FEDP payload -> never tile-final; a genuine
     // compute beat is tile-final iff its queued tag is set.
-    assign is_tile_final = res_fire ? (~is_setup_beat && ~tag_q_empty && tag_q_out)
+    assign is_tile_final = res_fire ? (~is_setup_beat && ~tag_q_empty && q_tag)
                                     : 1'b0;
+    assign fmt_d_out     = q_fmt_d;
 
     // =========================================================================
     // Assertions (simulation only). Mirror gcb-spec/vortex_integration_notes.md
