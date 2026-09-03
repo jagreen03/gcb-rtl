@@ -79,6 +79,7 @@ module greencoyote_pilot_regs #(
     // Reduction control outputs
     output wire         fire,            // pulses one cycle
     output wire         auto_fire,
+    output wire [1:0]   round_mode,      // REDUCTION_CTRL.ROUND_MODE — BFP rounding (sec 5.2)
 
     // Reduction status inputs
     input  wire         mode_active,
@@ -87,6 +88,11 @@ module greencoyote_pilot_regs #(
     input  wire         cal_err,
     input  wire         fire_done,
     input  wire         queue_full,
+
+    // BFP scale status inputs (BLK_SCALE_STATUS 0xAC)
+    input  wire [4:0]   blk_exp_last,    // shared block exponent, last fire
+    input  wire         blk_scale_clamp, // sticky BFP-window clamp
+    input  wire [3:0]   lane_bias_n,     // active lane count latched at fire
 
     // Interrupt output to host CPU
     output wire         irq_out,
@@ -243,6 +249,7 @@ reg [7:0]   r_trim_ch7;
 // 0x10 Reduction Control
 reg         r_auto_fire;
 reg         r_fire_pulse;
+reg [1:0]   r_round_mode;      // [12:11] BFP rounding: 00 trunc 01 rne 10 stochastic
 
 // 0x14 Interrupt Control
 reg         r_irq_en;
@@ -347,6 +354,7 @@ always @(posedge clk or negedge rst_n) begin
         r_trim_ch7          <= 8'hFF;
         r_auto_fire         <= 1'b0;
         r_fire_pulse        <= 1'b0;
+        r_round_mode        <= 2'b01;   // RNE default (registers.yaml)
         r_irq_en            <= 1'b0;
         r_irq_fire_done_en  <= 1'b0;
         r_irq_cal_err_en    <= 1'b0;
@@ -469,7 +477,8 @@ always @(posedge clk or negedge rst_n) begin
                 ADDR_REDUCTION_CTRL: begin
                     if (mmio_wdata[0])    // FIRE bit — self-clearing
                         r_fire_pulse <= 1'b1;
-                    r_auto_fire <= mmio_wdata[10];
+                    r_auto_fire  <= mmio_wdata[10];
+                    r_round_mode <= mmio_wdata[12:11];
                 end
 
                 // 0x14 Interrupt Control
@@ -676,7 +685,8 @@ always @(posedge clk) begin
                                    r_trim_ch5,
                                    r_trim_ch4};
 
-            ADDR_REDUCTION_CTRL: mmio_rdata <= {21'h0,
+            ADDR_REDUCTION_CTRL: mmio_rdata <= {19'h0,
+                                   r_round_mode,     // [12:11]
                                    r_auto_fire,      // [10]
                                    fire_done,        // [9]
                                    cal_err,          // [8]
@@ -684,6 +694,11 @@ always @(posedge clk) begin
                                    pass_index,       // [3:2]
                                    mode_active,      // [1]
                                    1'b0};            // [0] FIRE reads as 0 (self-clearing)
+
+            ADDR_BLK_SCALE_STATUS: mmio_rdata <= {22'h0,
+                                   lane_bias_n,      // [9:6]
+                                   blk_scale_clamp,  // [5]
+                                   blk_exp_last};    // [4:0]
 
             ADDR_IRQ_CTRL: mmio_rdata <= {22'h0,
                                    r_irq_status,     // [8] read only
@@ -875,6 +890,7 @@ assign trim_ch[7]       = r_trim_ch7;
 
 assign fire             = r_fire_pulse;
 assign auto_fire        = r_auto_fire;
+assign round_mode       = r_round_mode;
 assign irq_out          = r_irq_status && r_irq_en;
 
 assign xbar_port_dest[0] = r_xbar_dest0;

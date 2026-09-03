@@ -10,6 +10,14 @@
 //
 // State Machine:
 //   IDLE → NORMALIZE → PACK → FIRE → CAPTURE → PASS_CHECK → REDUCE2 → DONE
+//
+// NORMALIZE now runs the block-floating-point (BFP) pass of
+// carry_save_streaming_contract.md sec 5.1: derive a shared block exponent from the
+// active-lane magnitudes, arithmetic-shift each 32-bit Q17.14 accumulator word
+// down into the 12-bit DAC window, round per ROUND_MODE (sec 5.2), add the
+// offset-binary lane bias (sec 5.3), and clamp. The shared exponent and the active
+// lane count are latched for the post-ADC reconstruction in CAPTURE/CAPTURE2
+// (sec 5.4). This replaces the earlier `buf_data[i][11:0]` static truncation.
 // =============================================================================
 
 module greencoyote_photonic_sequencer (
@@ -22,6 +30,7 @@ module greencoyote_photonic_sequencer (
     input  logic [2:0]  mode_sel,               // 000=INT4 001=FP4 010=FP8 011=BF16
     input  logic [1:0]  sat_guard,              // Guard bits for clipping
     input  logic [1:0]  noise_headroom,         // Reserved noise bits
+    input  logic [1:0]  round_mode,             // REDUCTION_CTRL.ROUND_MODE — BFP rounding (sec 5.2)
     input  logic [11:0] dark_offset,            // Photodetector dark current
     input  logic [7:0]  trim_ch [0:7],          // Per-channel gain coefficients
 
@@ -31,6 +40,11 @@ module greencoyote_photonic_sequencer (
     output logic        cal_err,                // ADC clip or integrity fault
     output logic        fire_done,              // Reduction complete pulse
     output logic        queue_full,             // All active channels ready
+
+    // --- BFP scale status (to pilot_regs BLK_SCALE_STATUS 0xAC) ---
+    output logic [4:0]  blk_exp_last,           // Shared block exponent, last fire (sec 5.1)
+    output logic        blk_scale_clamp,        // Sticky: a lane clamped in the BFP window (sec 5.1/sec 7)
+    output logic [3:0]  lane_bias_n,            // Active lane count latched at fire (sec 5.3 de-bias)
 
     // --- Buffer Interface (from GPU partial sum buffers) ---
     input  logic [31:0] buf_data [0:7],         // Partial sum per GPU channel
@@ -65,13 +79,27 @@ localparam MODE_BF16 = 3'b011;
 localparam ADC_MAX   = 12'hFFF;
 localparam ADC_CLIP_THRESH = 12'hF00;   // Flag if within top 256 counts
 
+// BFP rounding modes — carry_save_streaming_contract.md sec 5.2
+localparam ROUND_TRUNC = 2'b00;   // arithmetic shift only (floor toward -inf)
+localparam ROUND_RNE   = 2'b01;   // round-nearest-even (reset default)
+localparam ROUND_STOCH = 2'b10;   // stochastic, per-lane LFSR dither
+                                  // 2'b11 reserved -> treated as truncate
+
+// 12-bit DAC window: offset-binary zero and full-scale (sec 5.3)
+localparam int OFFSET_BIN   = 2048;    // per active lane: code 0 -> value -2048
+localparam int DAC_CODE_MAX = 4095;
+
+// Per-lane stochastic-rounding LFSR — same polynomial as greencoyote_dac_if.sv
+// (x^16 + x^15 + x^13 + x^4 + 1), one generator per optical lane, distinct seed.
+localparam logic [15:0] LFSR_SEED0 = 16'hACE1;
+
 // =============================================================================
 // State machine definition
 // =============================================================================
 
 typedef enum logic [3:0] {
     IDLE        = 4'h0,
-    NORMALIZE   = 4'h1,    // Apply trim_ch gain and dark_offset subtraction
+    NORMALIZE   = 4'h1,    // Run the BFP pass; latch blk_exp and active lane count
     PACK        = 4'h2,    // Apply precision packing into 12-bit DAC window
     FIRE        = 4'h3,    // Assert dac_sync — optical summation
     CAPTURE     = 4'h4,    // Wait for adc_valid
@@ -88,14 +116,31 @@ seq_state_t state;
 // Internal registers
 // =============================================================================
 
-logic [11:0] normalized [0:7];      // Post dark-offset, pre-pack
-logic [11:0] dac_packed [0:7];      // Post precision packing, DAC-ready
-logic [11:0] pass1a_result;         // ADC result from Pass 1a
-logic [11:0] pass1b_result;         // ADC result from Pass 1b
-logic [12:0] pass2_sum;             // Digital sum of Pass 1a + 1b (13-bit)
+logic [11:0] bfp_code    [0:7];     // BFP window output, offset-binary DAC code (sec 5.1)
+logic [11:0] dac_packed  [0:7];     // Post precision packing, DAC-ready
+logic [11:0] pass1a_result;         // Raw ADC result from Pass 1a
+logic [11:0] pass1b_result;         // Raw ADC result from Pass 1b
+logic [12:0] pass2_sum;             // Digital sum of raw Pass 1a + 1b (13-bit)
 logic        is_14gpu_mode;         // Set when buf_full[5:0] all set — 14 GPU
-logic [3:0]  active_channels;       // Count of channels with data
-logic [19:0] trimmed [0:7];
+
+// --- BFP forward-path nets (combinational, from live buf_data/buf_full) -------
+logic signed [31:0] acc_word  [0:7];   // trim-scaled Q17.14 accumulator word per lane
+logic        [31:0] lane_mag  [0:7];   // |acc_word|
+logic        [31:0] blk_mag_max;       // max magnitude across ACTIVE lanes
+logic        [5:0]  blk_msb_idx;       // msb_index(blk_mag_max), 0..31
+logic        [4:0]  bfp_blk_exp;       // shared block exponent this cycle (sec 5.1 step 2)
+logic               bfp_any_clamp;     // any active lane hit the [0,4095] clamp
+
+// --- BFP state latched at NORMALIZE, consumed in CAPTURE/CAPTURE2 (sec 5.4) ------
+logic [4:0]  blk_exp_r;             // shared block exponent for the in-flight fire
+logic [3:0]  lane_bias_n_r;         // active lane count (= queue_depth) at fire
+logic signed [31:0] stage_result;  // sec 5.4 reconstruction: (adc - n*2048) <<< blk_exp,
+                                   // Q17.14, forwarded to the next cascade stage /
+                                   // fabric output (no dedicated port yet — contract sec 8.3)
+logic signed [17:0] adc_debiased;  // adc_data_sync - lane_bias_n_r*2048 (pre-shift)
+
+// --- Per-lane stochastic-rounding dither -------------------------------------
+logic [15:0] lfsr [0:7];
 
 // =============================================================================
 // ADC clock-domain-crossing synchronizers
@@ -143,38 +188,145 @@ always_comb begin
 end
 
 // =============================================================================
-// Gain trim normalization — digital multiply before DAC
-// Applied as: normalized = (buf_data * trim_ch) >> 8 - dark_offset
+// Per-lane gain trim — applied to the FULL 32-bit accumulator word, not the
+// old 12-bit truncation. trim_ch is the per-channel MDL calibration coefficient
+// (0xFF ~ unity: 255/256). Result stays Q17.14 two's-complement.
 // =============================================================================
 
-always_comb begin
+always_comb begin : trim_scale
+    logic        [31:0] bd;
+    logic signed [40:0] prod;
+    logic signed [31:0] w;
     for (int i = 0; i < NUM_CH; i++) begin
-        trimmed[i]    = buf_data[i][11:0] * trim_ch[i];   // 12b * 8b = 20b
-        //normalized[i] = trimmed[19:8] - dark_offset; Unsigned subtraction with no floor
-		normalized[i] = (trimmed[i][19:8] > dark_offset)
-              ? trimmed[i][19:8] - dark_offset
-              : 12'h000;
+        bd          = buf_data[i];
+        // 32b signed * 9b unsigned, evaluated in 41b, then >>> 8 back to Q17.14
+        prod        = $signed(bd) * $signed({1'b0, trim_ch[i]});
+        w           = 32'(prod >>> 8);
+        acc_word[i] = w;
+        lane_mag[i] = w[31] ? (~w + 32'd1) : w;
     end
 end
 
 // =============================================================================
-// Precision packing — map normalized value into 12-bit DAC window
-// based on MODE_SEL. Zero-pads inactive channels.
+// BFP block exponent — carry_save_streaming_contract.md sec 5.1 steps 1-2.
+//   mag_max  = max |acc_word[k]| over ACTIVE lanes
+//   blk_exp  = clamp( msb_index(mag_max) - (11 - SAT_GUARD - NOISE_HEADROOM), 0, 31 )
+// msb_index is a 32-bit priority encoder (one level of logic).
 // =============================================================================
 
-always_comb begin
+function automatic logic [5:0] msb_index (input logic [31:0] v);
+    msb_index = 6'd0;
+    for (int b = 0; b < 32; b++)
+        if (v[b]) msb_index = b[5:0];
+endfunction
+
+always_comb begin : blk_max
+    blk_mag_max = 32'd0;
+    for (int i = 0; i < NUM_CH; i++)
+        if (buf_full[i] && lane_mag[i] > blk_mag_max)
+            blk_mag_max = lane_mag[i];
+    blk_msb_idx = msb_index(blk_mag_max);
+end
+
+always_comb begin : bfp_exp
+    // window position: 11 - SAT_GUARD - NOISE_HEADROOM, in [3..11]
+    int win;
+    int be_raw;
+    win    = 11 - int'(sat_guard) - int'(noise_headroom);
+    be_raw = int'(blk_msb_idx) - win;
+    if      (be_raw <= 0)  bfp_blk_exp = 5'd0;
+    else if (be_raw >= 31) bfp_blk_exp = 5'd31;
+    else                   bfp_blk_exp = 5'(be_raw);
+end
+
+// =============================================================================
+// BFP per-lane window — sec 5.1 step 3, sec 5.2 rounding, sec 5.3 offset-binary.
+//   shifted = acc_word[k] >>> blk_exp            (arithmetic, floor toward -inf)
+//   rounded = shifted + round_up(round_mode, discarded frac)
+//   biased  = rounded + 2048                     (active lanes only)
+//   code    = clamp(biased, 0, 4095)
+// Inactive lanes emit code 0 and are NOT offset-biased.
+// =============================================================================
+
+always_comb begin : bfp_window
+    logic [4:0]         be;
+    logic signed [32:0] shifted;
+    logic [31:0]        frac_mask;
+    logic [31:0]        frac;
+    logic               guard, sticky, round_up;
+    logic signed [33:0] biased;
+
+    be            = bfp_blk_exp;
+    bfp_any_clamp = 1'b0;
+
     for (int i = 0; i < NUM_CH; i++) begin
+        if (!buf_full[i]) begin
+            bfp_code[i] = 12'h000;              // zero-pad, no bias
+        end else begin
+            shifted   = $signed(acc_word[i]) >>> be;
+            frac_mask = (be == 5'd0) ? 32'd0 : ((32'd1 << be) - 32'd1);
+            frac      = acc_word[i] & frac_mask;          // discarded low bits (>= 0)
+            guard     = (be == 5'd0) ? 1'b0 : frac[be - 5'd1];
+            sticky    = (be <= 5'd1) ? 1'b0
+                                     : |(frac & (frac_mask >> 1));
+
+            unique case (round_mode)
+                ROUND_RNE:   round_up = guard & (sticky | shifted[0]);
+                ROUND_STOCH: round_up = ({16'd0, lfsr[i]} & frac_mask) < frac;
+                default:     round_up = 1'b0;             // TRUNC and 2'b11
+            endcase
+
+            biased = 34'($signed(shifted)) + $signed(34'(round_up))
+                   + $signed(34'(OFFSET_BIN));
+
+            if (biased < 0) begin
+                bfp_code[i]   = 12'h000;
+                bfp_any_clamp = 1'b1;
+            end else if (biased > DAC_CODE_MAX) begin
+                bfp_code[i]   = 12'hFFF;
+                bfp_any_clamp = 1'b1;
+            end else begin
+                bfp_code[i] = biased[11:0];
+            end
+        end
+    end
+end
+
+// =============================================================================
+// Precision packing — map the BFP window code into the DAC word by MODE_SEL,
+// after the sec 5 block scaling (contract sec 4.3). Zero-pads inactive channels.
+// =============================================================================
+
+always_comb begin : precision_pack
+    logic [11:0] c;
+    for (int i = 0; i < NUM_CH; i++) begin
+        c = bfp_code[i];
         if (!buf_full[i]) begin
             dac_packed[i] = 12'h000;    // Zero-pad inactive channel
         end else begin
             case (mode_sel)
-                MODE_INT4: dac_packed[i] = {8'h00, normalized[i][3:0]};    // 4-bit in LSBs
-                MODE_FP4:  dac_packed[i] = {6'h00, normalized[i][5:0]};    // 6-bit window
-                MODE_FP8:  dac_packed[i] = normalized[i];                   // Full 12-bit
-                MODE_BF16: dac_packed[i] = normalized[i];                   // Full 12-bit
-                default:   dac_packed[i] = normalized[i];
+                MODE_INT4: dac_packed[i] = {8'h00, c[3:0]};    // 4-bit in LSBs
+                MODE_FP4:  dac_packed[i] = {6'h00, c[5:0]};    // 6-bit window
+                MODE_FP8:  dac_packed[i] = c;                   // Full 12-bit
+                MODE_BF16: dac_packed[i] = c;                   // Full 12-bit
+                default:   dac_packed[i] = c;
             endcase
         end
+    end
+end
+
+// =============================================================================
+// Per-lane stochastic-rounding LFSRs — free-running dither source (sec 5.2).
+// =============================================================================
+
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        for (int i = 0; i < NUM_CH; i++)
+            lfsr[i] <= LFSR_SEED0 ^ (16'(i) << 12) ^ 16'(i + 1);   // distinct, nonzero
+    end else begin
+        for (int i = 0; i < NUM_CH; i++)
+            lfsr[i] <= {lfsr[i][14:0],
+                        (lfsr[i][15] ^ lfsr[i][14] ^ lfsr[i][12] ^ lfsr[i][3])};
     end
 end
 
@@ -195,6 +347,10 @@ always_ff @(posedge clk or negedge rst_n) begin
         pass1a_result <= 12'h000;
         pass1b_result <= 12'h000;
         pass2_sum     <= 13'h0000;
+        blk_exp_r       <= 5'd0;
+        lane_bias_n_r   <= 4'd0;
+        blk_scale_clamp <= 1'b0;
+        stage_result    <= 32'sd0;
         for (int i = 0; i < NUM_CH; i++)
             dac_data[i] <= 12'h000;
     end else begin
@@ -223,17 +379,27 @@ always_ff @(posedge clk or negedge rst_n) begin
             end
 
             // -----------------------------------------------------------------
-            // Normalization is combinational — one cycle to register results
+            // BFP pass is combinational — one cycle to snapshot the shared
+            // block exponent and the active lane count for this fire (sec 5.1,
+            // consumed by the post-ADC reconstruction in sec 5.4).
             NORMALIZE: begin
-                state <= PACK;
+                blk_exp_r     <= bfp_blk_exp;
+                lane_bias_n_r <= queue_depth;
+                state         <= PACK;
             end
 
             // -----------------------------------------------------------------
-            // Packing is combinational — one cycle to register and load DACs
+            // Packing is combinational — one cycle to register and load DACs.
+            // A BFP window clamp is sticky and also raises cal_err (contract sec 7:
+            // "reduction still fires").
             PACK: begin
                 for (int i = 0; i < NUM_CH; i++) begin
                     dac_data[i] <= dac_packed[i];
                     dac_valid[i] <= buf_full[i];    // Only valid channels
+                end
+                if (bfp_any_clamp) begin
+                    blk_scale_clamp <= 1'b1;
+                    cal_err         <= 1'b1;
                 end
                 state <= FIRE;
             end
@@ -258,6 +424,9 @@ always_ff @(posedge clk or negedge rst_n) begin
                         cal_err <= 1'b1;
                     end
                     pass1a_result <= adc_data_sync;
+                    // sec 5.4 reconstruction: strip the offset-binary lane bias
+                    // (n*2048) and undo the block shift -> Q17.14 partial sum.
+                    stage_result  <= 32'($signed(adc_debiased)) <<< blk_exp_r;
                     state         <= PASS_CHECK;
                 end
             end
@@ -299,8 +468,11 @@ always_ff @(posedge clk or negedge rst_n) begin
                     if (adc_data_sync >= ADC_CLIP_THRESH || conv_fault_sync)
                         cal_err <= 1'b1;
                     pass1b_result <= adc_data_sync;
-                    // Digital Stage 2 sum — no optical needed
+                    // Digital Stage 2 sum — no optical needed (raw ADC domain)
                     pass2_sum     <= {1'b0, pass1a_result} + {1'b0, adc_data_sync};
+                    // sec 5.4 reconstruction for the Pass 1b sub-reduction (reuses
+                    // this fire's blk_exp_r / lane_bias_n_r).
+                    stage_result  <= 32'($signed(adc_debiased)) <<< blk_exp_r;
                     pass_index    <= 2'b10;     // Pass 2
                     state         <= DONE;
                 end
@@ -321,9 +493,26 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 
 // =============================================================================
+// Post-ADC de-bias term (sec 5.3/sec 5.4): adc_data_sync - lane_bias_n_r * 2048.
+// lane_bias_n_r counts only the ACTIVE lanes that were offset-biased (not 8).
+// =============================================================================
+
+assign adc_debiased = $signed({6'd0, adc_data_sync})
+                    - $signed({3'd0, lane_bias_n_r, 11'd0});   // n * 2048
+
+// =============================================================================
+// BFP scale status to pilot_regs (BLK_SCALE_STATUS @ 0xAC)
+// =============================================================================
+
+assign blk_exp_last = blk_exp_r;
+assign lane_bias_n  = lane_bias_n_r;
+// blk_scale_clamp is a sticky reg driven in the FSM.
+
+// =============================================================================
 // Pass 2 result output
-// Available on pass2_sum[11:0] when pass_index == 2'b10
-// Connect to result buffer or broadcast back to GPU channels
+// Available on pass2_sum[11:0] when pass_index == 2'b10 (raw ADC domain);
+// stage_result carries the sec 5.4-reconstructed Q17.14 partial sum for the
+// cascade / fabric output.
 // =============================================================================
 
 endmodule

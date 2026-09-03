@@ -153,6 +153,7 @@ logic [31:0] mmio_rdata;
 
 logic        fire;
 logic        auto_fire;
+logic [1:0]  round_mode;
 logic [2:0]  mode_sel;
 logic [1:0]  noise_headroom;
 logic [1:0]  sat_guard;
@@ -172,6 +173,9 @@ logic [3:0]  queue_depth;
 logic        cal_err;
 logic        fire_done;
 logic        queue_full;
+logic [4:0]  blk_exp_last;
+logic        blk_scale_clamp;
+logic [3:0]  lane_bias_n;
 
 // =============================================================================
 // Internal wires — interrupt
@@ -276,6 +280,7 @@ greencoyote_pilot_regs u_pilot_regs (
     // Control outputs to sequencer
     .fire               (fire),
     .auto_fire          (auto_fire),
+    .round_mode         (round_mode),
 
     // Status inputs from sequencer
     .mode_active        (mode_active),
@@ -284,6 +289,9 @@ greencoyote_pilot_regs u_pilot_regs (
     .cal_err            (cal_err),
     .fire_done          (fire_done),
     .queue_full         (queue_full),
+    .blk_exp_last       (blk_exp_last),
+    .blk_scale_clamp    (blk_scale_clamp),
+    .lane_bias_n        (lane_bias_n),
 
     // Interrupt output to AXI wrapper
     .irq_out            (irq_out),
@@ -407,6 +415,7 @@ greencoyote_photonic_sequencer u_sequencer (
     .mode_sel           (mode_sel),
     .sat_guard          (sat_guard),
     .noise_headroom     (noise_headroom),
+    .round_mode         (round_mode),
     .dark_offset        (dark_offset),
     .trim_ch            (trim_ch),
 
@@ -417,6 +426,9 @@ greencoyote_photonic_sequencer u_sequencer (
     .cal_err            (cal_err),
     .fire_done          (fire_done),
     .queue_full         (queue_full),
+    .blk_exp_last       (blk_exp_last),
+    .blk_scale_clamp    (blk_scale_clamp),
+    .lane_bias_n        (lane_bias_n),
 
     // GPU buffer interface
     .buf_data           (buf_data),
