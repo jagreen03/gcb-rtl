@@ -119,6 +119,8 @@ if verilator "${VL_TB_FLAGS[@]}" sim_out/verilator.vlt $XCONFIGS "${VL_TB_INC[@]
         "$VORTEX/hw/rtl/VX_gpu_pkg.sv" \
         "$VORTEX/hw/rtl/tcu/VX_tcu_pkg.sv" \
         "$VORTEX/hw/unittest/tcu_unit/VX_tcu_unit_top.sv" \
+        ../VX_tcu_tilefinal_tag.sv \
+        VX_tcu_tilefinal_tag_obs.sv \
         ../VX_tcu_tilefinal_sva.sv \
         ../VX_tcu_tilefinal_sva_bind.sv \
         --exe sim_main.cpp \

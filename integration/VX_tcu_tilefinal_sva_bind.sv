@@ -1,17 +1,30 @@
 // =============================================================================
-// GreenCoyote-Bay <-> Vortex 3.0 — tile-final SVA bind
+// GreenCoyote-Bay <-> Vortex 3.0 - tile-final SVA + tag binds
 // =============================================================================
-// Binds VX_tcu_tilefinal_sva (A1..A5, vortex_integration_notes.md sec 8.4) into
-// every VX_tcu_core instance. Kept in its own file so the vortex clone stays
-// pristine — this file is added to the Verilator source list by
-// integration/tb/run_tilefinal_check.sh, never copied into the vortex tree.
+// Binds two observers into every VX_tcu_core instance. Kept out of the vortex
+// clone (added to the Verilator source list by integration/tb/run_tilefinal_check.sh).
 //
-// The bind expression reaches VX_tcu_core's own internal predicates (execute_fire,
-// fedp_enqueue, fedp_result_fire, is_wgmma, step_m/n/k) and the interface struct
-// field execute_if.data.header.eop — which only elaborate correctly inside a real
-// top (VX_tcu_unit_top), the reason this check runs as a full build rather than a
-// standalone lint.
+//   u_tf_tag_obs     - VX_tcu_tilefinal_tag_obs: the real VX_tcu_tilefinal_tag.sv
+//                      wrapped in an observer shim, fed from execute_if /
+//                      result_if snoop taps. Produces a live is_tile_final
+//                      aligned to result_if.valid.
+//   u_tilefinal_sva  - VX_tcu_tilefinal_sva (A1..A5). Reaches the core's own
+//                      predicates (execute_fire, fedp_enqueue, fedp_result_fire,
+//                      is_wgmma, step_m/n/k), result_if.data.header.eop, and the
+//                      tag observer's is_tile_final so A3/A5 evaluate.
 // =============================================================================
+
+bind VX_tcu_core VX_tcu_tilefinal_tag_obs u_tf_tag_obs (
+    .clk           (clk),
+    .reset         (reset),
+    .exe_valid     (execute_if.valid),
+    .exe_ready     (execute_if.ready),
+    .exe_data      (execute_if.data),
+    .res_valid     (result_if.valid),
+    .res_ready     (result_if.ready),
+    .res_data      (result_if.data),
+    .is_tile_final (/* read by u_tilefinal_sva below */)
+);
 
 bind VX_tcu_core VX_tcu_tilefinal_sva #(
     .M_STEPS    (VX_tcu_pkg::TCU_M_STEPS),
@@ -35,6 +48,6 @@ bind VX_tcu_core VX_tcu_tilefinal_sva #(
     .step_m           (step_m),
     .step_n           (step_n),
     .step_k           (step_k),
-    .is_tile_final    (1'bx),                       // tag wrapper not in this build
-    .header_eop       (execute_if.data.header.eop)
+    .is_tile_final    (u_tf_tag_obs.is_tile_final),
+    .header_eop       (result_if.data.header.eop)
 );

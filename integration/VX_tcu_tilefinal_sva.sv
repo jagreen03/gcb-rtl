@@ -64,16 +64,49 @@ module VX_tcu_tilefinal_sva #(
     wire [3:0] k_last     = is_wgmma ? 4'(WGK_LAST) : 4'(K_LAST);
     wire       exe_is_tf  = fedp_enqueue && (step_k == k_last);
 
+    // is_tile_final is driven when the VX_tcu_tilefinal_tag observer is bound
+    // (run_tilefinal_check.sh stage 3); tied X otherwise, in which case A3/A5
+    // are inert and A1/A2/A4 + the DPI counts carry the check.
+    wire tag_present = !$isunknown(is_tile_final);
+
 `ifdef GCB_TF_DPI
     // Directed-test instrumentation (run_tilefinal_check.sh stage 3). kind:
-    //   0 = params    (a=UOPS, b=TF_EXPECT, c=TILE_K)
-    //   1 = enqueue   (a=step_k, b=k_last)
-    //   2 = result    (a=beats_out+1)
-    //   3 = retire    (a=beats_in, b=tf_in, c=beats_out)
+    //   0 = params        (a=UOPS, b=TF_EXPECT, c=TILE_K)
+    //   1 = enqueue       (a=step_k, b=k_last)
+    //   2 = result        (a=beats_out+1, b=is_tile_final on this result beat)
+    //   3 = retire        (a=beats_in, b=tf_in, c=tf_result_beats)
+    //   4 = tag went live (a=1)
     import "DPI-C" function void gcb_tf_event(input int kind, input int a,
                                               input int b, input int c);
     initial gcb_tf_event(0, UOPS, TF_EXPECT, TILE_K);
 `endif
+
+    // ---- reference is_tile_final: mirror FIFO of (step_k == k_last) ----------
+    // Push on fedp_enqueue, pop on fedp_result_fire. The head is the expected
+    // tile-final flag for the current result beat — cross-checked against the
+    // VX_tcu_tilefinal_tag observer's is_tile_final in A3.
+    localparam int REFD = 128;   // >> any TCU FEDP latency
+    logic         ref_mem [REFD];
+    int unsigned  ref_wr, ref_rd;
+    wire          ref_empty = (ref_wr == ref_rd);
+    wire          tf_ref    = ref_empty ? 1'b0 : ref_mem[ref_rd % REFD];
+
+    always_ff @(posedge clk) begin
+        if (reset) begin
+            ref_wr <= 0; ref_rd <= 0;
+        end else begin
+            if (fedp_enqueue)     begin ref_mem[ref_wr % REFD] <= (step_k == k_last); ref_wr <= ref_wr + 1; end
+            if (fedp_result_fire) ref_rd <= ref_rd + 1;
+        end
+    end
+
+    // ---- tile-final RESULT-beat count (the M_AXIS_CS tap) -------------------
+    int unsigned tf_result_beats;
+    always_ff @(posedge clk) begin
+        if (reset)                              tf_result_beats <= 0;
+        else if (fedp_enqueue && !instr_active) tf_result_beats <= (fedp_result_fire && tf_ref) ? 1 : 0;
+        else if (fedp_result_fire && tf_ref)    tf_result_beats <= tf_result_beats + 1;
+    end
 
     // ---- per-instruction counters -------------------------------------------
     // A new instruction = the first fedp_enqueue after all outstanding result
@@ -104,15 +137,21 @@ module VX_tcu_tilefinal_sva #(
                 instr_active <= 1'b0;
 `ifdef GCB_TF_DPI
                 gcb_tf_event(3, int'(beats_in), int'(tf_in),
-                             int'(beats_out + (fedp_result_fire ? 1 : 0)));
+                             int'(tf_result_beats + ((fedp_result_fire && tf_ref) ? 1 : 0)));
 `endif
             end
 `ifdef GCB_TF_DPI
             if (fedp_enqueue)     gcb_tf_event(1, int'(step_k), int'(k_last), 0);
-            if (fedp_result_fire) gcb_tf_event(2, int'(beats_out + 1), 0, 0);
+            if (fedp_result_fire) gcb_tf_event(2, int'(beats_out + 1), int'(is_tile_final), 0);
+            if (tag_present && !tag_present_q) gcb_tf_event(4, 1, 0, 0);
 `endif
         end
     end
+
+`ifdef GCB_TF_DPI
+    logic tag_present_q;
+    always_ff @(posedge clk) tag_present_q <= reset ? 1'b0 : (tag_present_q | tag_present);
+`endif
 
     // ---- A1: exactly UOPS execute enqueues per instruction -----------------
     a1_uop_count: assert property (@(posedge clk) disable iff (reset)
@@ -128,14 +167,17 @@ module VX_tcu_tilefinal_sva #(
         (!instr_active && $past(instr_active)) |-> ($past(tf_in) == TF_EXPECT))
         else $error("A2: %0d tile-final uops, expected %0d", $past(tf_in), TF_EXPECT);
 
-    // ---- A3: is_tile_final tracks the tile-final result beats -------------
-    // Needs VX_tcu_tilefinal_tag driving is_tile_final. When the tag wrapper is
-    // not in the build (is_tile_final tied X) this is inert — A1/A2 + the DPI
-    // beat counts carry the check; full A3 alignment is the tag-wrapper TB's job.
-    wire tag_present = !$isunknown(is_tile_final);
+    // ---- A3: is_tile_final on a compute result beat == (that beat's uop had
+    //         step_k == k_last). The VX_tcu_tilefinal_tag observer's marker is
+    //         cross-checked against the SVA's own mirror-FIFO reference tf_ref.
     a3_no_x: assert property (@(posedge clk) disable iff (reset || !tag_present)
         fedp_result_fire |-> !$isunknown(is_tile_final))
-        else $error("A3: is_tile_final is X on a result beat while the tag is present");
+        else $error("A3: is_tile_final is X on a compute result beat");
+
+    a3_align: assert property (@(posedge clk) disable iff (reset || !tag_present)
+        fedp_result_fire |-> (is_tile_final === tf_ref))
+        else $error("A3: tag is_tile_final=%b != reference tf_ref=%b on result beat %0d",
+                    is_tile_final, tf_ref, beats_out);
 
     // ---- A4: the step_k==last beat is the final writeback for its (m,n) -----
     // Loop order is K-outermost, so once step_k hits k_last it stays k_last for

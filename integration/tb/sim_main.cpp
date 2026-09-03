@@ -33,8 +33,9 @@ struct TfState {
     bool have_params = false;
     int  uops_expect = -1, tf_expect = -1, tile_k = -1;
     int  instr_retired = 0;
-    int  last_beats_in = -1, last_tf_in = -1, last_beats_out = -1;
-    int  enqueues = 0, results = 0;
+    int  last_beats_in = -1, last_tf_in = -1, last_tf_result = -1;
+    int  enqueues = 0, results = 0, tf_result_beats = 0;
+    bool tag_live = false;
     bool verbose = false;
 } tf;
 }
@@ -52,12 +53,17 @@ extern "C" void gcb_tf_event(int kind, int a, int b, int c) {
         break;
     case 2:
         tf.results++;
-        if (tf.verbose) std::printf("[sva]   result #%d\n", a);
+        if (b) tf.tf_result_beats++;
+        if (tf.verbose) std::printf("[sva]   result #%d is_tile_final=%d\n", a, b);
         break;
     case 3:
         tf.instr_retired++;
-        tf.last_beats_in = a; tf.last_tf_in = b; tf.last_beats_out = c;
-        std::printf("[sva] retire: beats_in=%d  tile_final=%d  beats_out=%d\n", a, b, c);
+        tf.last_beats_in = a; tf.last_tf_in = b; tf.last_tf_result = c;
+        std::printf("[sva] retire: beats_in=%d  tile_final_uops=%d  tile_final_result_beats=%d\n", a, b, c);
+        break;
+    case 4:
+        tf.tag_live = true;
+        std::printf("[sva] VX_tcu_tilefinal_tag observer live -> A3/A5 evaluating\n");
         break;
     default: break;
     }
@@ -198,11 +204,14 @@ int main(int argc, char** argv) {
     if (tf.instr_retired < 1) { std::printf("FAIL: P2 SVA never retired an instruction (drove %d beats, %d results)\n", beat, tf.results); fails++; }
     else {
         if (tf.last_beats_in != tf.uops_expect) { std::printf("FAIL: beats_in=%d exp TCU_UOPS=%d\n", tf.last_beats_in, tf.uops_expect); fails++; }
-        if (tf.last_tf_in    != tf.tf_expect)   { std::printf("FAIL: tile_final=%d exp M_STEPS*N_STEPS=%d\n", tf.last_tf_in, tf.tf_expect); fails++; }
-        if (tf.last_beats_in == tf.uops_expect && tf.last_tf_in == tf.tf_expect)
-            std::printf("PASS: P2 SVA beat counts - beats_in=%d, tile_final=%d (A1/A2/A4)\n",
-                        tf.last_beats_in, tf.last_tf_in);
+        if (tf.last_tf_in    != tf.tf_expect)   { std::printf("FAIL: tile_final uops=%d exp M_STEPS*N_STEPS=%d\n", tf.last_tf_in, tf.tf_expect); fails++; }
+        if (tf.last_tf_result != tf.tf_expect)  { std::printf("FAIL: tile_final RESULT beats=%d exp %d\n", tf.last_tf_result, tf.tf_expect); fails++; }
+        if (tf.last_beats_in == tf.uops_expect && tf.last_tf_in == tf.tf_expect && tf.last_tf_result == tf.tf_expect)
+            std::printf("PASS: P2 SVA counts - beats_in=%d, tile_final uops=%d, tile_final result beats=%d (A1/A2/A4)\n",
+                        tf.last_beats_in, tf.last_tf_in, tf.last_tf_result);
     }
+    if (!tf.tag_live) { std::printf("FAIL: VX_tcu_tilefinal_tag observer never went live (A3/A5 did not evaluate)\n"); fails++; }
+    else              std::printf("PASS: A3/A5 evaluated against a live is_tile_final (tag observer bound)\n");
 
     dut->final();
     delete dut;
