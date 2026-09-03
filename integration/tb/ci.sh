@@ -77,6 +77,18 @@ else
     fi
 fi
 
+# ---- 4. tile-final SVA check vs the real VX_CFG_* (needs the vortex clone) --
+# vortex_integration_notes.md sec 8.4. Needs Verilator >= 5 AND the vortex
+# sibling clone (not vendored). Exit 2 from the runner = prerequisites missing
+# -> SKIP (a missing external clone is never a CI failure here).
+tf_rc=0
+bash run_tilefinal_check.sh >/dev/null 2>&1 || tf_rc=$?
+case "$tf_rc" in
+    0) record "tilefinal-sva (verilator+vortex)" PASS ;;
+    2) record "tilefinal-sva (verilator+vortex)" SKIP "verilator>=5 and/or ../../vortex missing" ;;
+    *) record "tilefinal-sva (verilator+vortex)" FAIL "exit $tf_rc" ;;
+esac
+
 # ---- summary ----------------------------------------------------------
 echo
 echo "================= integration TB summary ================="
