@@ -84,11 +84,57 @@ else
     echo "  sim_out/rtl_lint.log. Stage 1 already validated the SVA itself."
 fi
 
-# ---- stage 3: directed WMMA test + config sweep (TODO) ---------------
-# Build hw/unittest/tcu_unit with $VX_TFR_CONFIGS, bind VX_tcu_tilefinal_sva
-# into VX_tcu_core, issue the directed wmma (A=all-ones INT8, B=identity, C=0
-# -> D[m][n]=TILE_K), capture M_AXIS_CS; assert stream beats == M_STEPS*N_STEPS
-# (not TCU_UOPS), each de-scaled acc_word == D[m][n], A1..A5 pass; sweep
-# {8,16} x {FP8,INT8} x {WGMMA off,on}.
-echo "PARTIAL stage 3: directed WMMA test not yet wired — see TODO above"
+# ---- stage 3: elaborate VX_tcu_core in a real top + run one WMMA -------
+# Build Vortex's VX_tcu_unit_top with $XCONFIGS, bind VX_tcu_tilefinal_sva into
+# every VX_tcu_core (VX_tcu_tilefinal_sva_bind.sv), drive one WMMA from
+# sim_main.cpp. Elaborating inside the real top is what resolves the nested
+# execute_if.data structs that stage 2's standalone lint cannot.
+#
+# TODO: extend sim_main.cpp to the directed A=all-ones INT8 / B=identity / C=0
+# case (D[m][n] = TILE_K) + M_AXIS_CS capture + the {8,16}x{FP8,INT8}x{WGMMA}
+# sweep. For now it drives one packet so the SVA's per-instruction A1..A5 run.
+
+# verilator.vlt waiver (third-party lint-off) — @VORTEX_HOME@ substituted here so
+# the vortex clone is not touched.
+sed "s|@VORTEX_HOME@|$VORTEX|g" "$VORTEX/hw/unittest/verilator.vlt.in" > sim_out/verilator.vlt
+
+VL_TB_INC=(
+    +incdir+sim_out
+    -I"$VORTEX/sw" -I"$VORTEX/hw"
+    -I"$VORTEX/hw/rtl" -I"$VORTEX/hw/dpi" -I"$VORTEX/hw/rtl/libs"
+    -I"$VORTEX/hw/rtl/tcu" -I"$VORTEX/hw/rtl/tcu/tfr"
+    -I"$VORTEX/hw/rtl/interfaces" -I"$VORTEX/hw/rtl/core"
+    -I"$VORTEX/hw/rtl/mem" -I"$VORTEX/hw/rtl/vm" -I"$VORTEX/hw/rtl/fpu"
+    -I"$VORTEX/hw/unittest/tcu_unit" -I"$VORTEX/hw/unittest/common"
+    -I..
+)
+VL_TB_FLAGS=( --binary -j 0 --timing --assert --language 1800-2012
+              -Wno-fatal -Wno-DECLFILENAME -Wno-REDEFMACRO -Wno-GENUNNAMED
+              -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -Wno-UNOPTFLAT
+              --x-initial unique --x-assign unique
+              -DSIMULATION --top-module VX_tcu_unit_top
+              --Mdir sim_out/obj_tcu_tf )
+
+if verilator "${VL_TB_FLAGS[@]}" sim_out/verilator.vlt $XCONFIGS "${VL_TB_INC[@]}" \
+        "$VORTEX/hw/rtl/VX_gpu_pkg.sv" \
+        "$VORTEX/hw/rtl/tcu/VX_tcu_pkg.sv" \
+        "$VORTEX/hw/unittest/tcu_unit/VX_tcu_unit_top.sv" \
+        ../VX_tcu_tilefinal_sva.sv \
+        ../VX_tcu_tilefinal_sva_bind.sv \
+        --exe sim_main.cpp \
+        > sim_out/tcu_tf_build.log 2>&1; then
+    echo "PASS stage 3 build: VX_tcu_unit_top + bound SVA elaborated"
+    if sim_out/obj_tcu_tf/VVX_tcu_unit_top > sim_out/tcu_tf_run.log 2>&1 \
+       && grep -q "TCU_TILEFINAL: WMMA committed" sim_out/tcu_tf_run.log \
+       && ! grep -qE "%Error|Assertion failed|: A[1-5]:" sim_out/tcu_tf_run.log; then
+        echo "PASS stage 3 run: $(grep TCU_TILEFINAL sim_out/tcu_tf_run.log)"
+    else
+        echo "FAIL stage 3 run — see sim_out/tcu_tf_run.log"; tail -20 sim_out/tcu_tf_run.log; exit 1
+    fi
+else
+    echo "PARTIAL stage 3: VX_tcu_unit_top build did not elaborate — see"
+    echo "  sim_out/tcu_tf_build.log (last 20 lines):"
+    tail -20 sim_out/tcu_tf_build.log
+fi
+
 exit 0
