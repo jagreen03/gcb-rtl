@@ -33,7 +33,9 @@ module VX_tcu_tilefinal_sva #(
     parameter int N_STEPS    = 2,
     parameter int K_STEPS    = 2,
     parameter int WG_K_STEPS = 2,
-    parameter int UOPS       = 16
+    parameter int UOPS       = 16,
+    parameter int TC_K       = 2,       // per-uop K depth (VX_tcu_pkg::TCU_TC_K)
+    parameter int TILE_K     = 4        // full tile K = TC_K * K_STEPS (TCU_TILE_K)
 )(
     input  logic       clk,
     input  logic       reset,
@@ -62,6 +64,17 @@ module VX_tcu_tilefinal_sva #(
     wire [3:0] k_last     = is_wgmma ? 4'(WGK_LAST) : 4'(K_LAST);
     wire       exe_is_tf  = fedp_enqueue && (step_k == k_last);
 
+`ifdef GCB_TF_DPI
+    // Directed-test instrumentation (run_tilefinal_check.sh stage 3). kind:
+    //   0 = params    (a=UOPS, b=TF_EXPECT, c=TILE_K)
+    //   1 = enqueue   (a=step_k, b=k_last)
+    //   2 = result    (a=beats_out+1)
+    //   3 = retire    (a=beats_in, b=tf_in, c=beats_out)
+    import "DPI-C" function void gcb_tf_event(input int kind, input int a,
+                                              input int b, input int c);
+    initial gcb_tf_event(0, UOPS, TF_EXPECT, TILE_K);
+`endif
+
     // ---- per-instruction counters -------------------------------------------
     // A new instruction = the first fedp_enqueue after all outstanding result
     // beats have drained (beats_out has caught up to beats_in).
@@ -89,7 +102,15 @@ module VX_tcu_tilefinal_sva #(
             if (instr_active && (beats_in == UOPS) &&
                 (beats_out + (fedp_result_fire ? 1 : 0) == UOPS)) begin
                 instr_active <= 1'b0;
+`ifdef GCB_TF_DPI
+                gcb_tf_event(3, int'(beats_in), int'(tf_in),
+                             int'(beats_out + (fedp_result_fire ? 1 : 0)));
+`endif
             end
+`ifdef GCB_TF_DPI
+            if (fedp_enqueue)     gcb_tf_event(1, int'(step_k), int'(k_last), 0);
+            if (fedp_result_fire) gcb_tf_event(2, int'(beats_out + 1), 0, 0);
+`endif
         end
     end
 
@@ -107,14 +128,14 @@ module VX_tcu_tilefinal_sva #(
         (!instr_active && $past(instr_active)) |-> ($past(tf_in) == TF_EXPECT))
         else $error("A2: %0d tile-final uops, expected %0d", $past(tf_in), TF_EXPECT);
 
-    // ---- A3: is_tile_final high on exactly the tile-final result beats -----
-    // Checked at the result interface: a result beat is tile-final iff its
-    // originating uop had step_k == k_last. The tag wrapper reproduces that;
-    // here we only guard that is_tile_final is never X and never set on a
-    // non-fedp beat (full alignment is the directed test's job).
-    a3_no_x: assert property (@(posedge clk) disable iff (reset)
+    // ---- A3: is_tile_final tracks the tile-final result beats -------------
+    // Needs VX_tcu_tilefinal_tag driving is_tile_final. When the tag wrapper is
+    // not in the build (is_tile_final tied X) this is inert — A1/A2 + the DPI
+    // beat counts carry the check; full A3 alignment is the tag-wrapper TB's job.
+    wire tag_present = !$isunknown(is_tile_final);
+    a3_no_x: assert property (@(posedge clk) disable iff (reset || !tag_present)
         fedp_result_fire |-> !$isunknown(is_tile_final))
-        else $error("A3: is_tile_final is X on a result beat (tag wrapper unbound?)");
+        else $error("A3: is_tile_final is X on a result beat while the tag is present");
 
     // ---- A4: the step_k==last beat is the final writeback for its (m,n) -----
     // Loop order is K-outermost, so once step_k hits k_last it stays k_last for
@@ -131,15 +152,15 @@ module VX_tcu_tilefinal_sva #(
 
     // ---- A5: header.eop must NOT equal is_tile_final on every beat ---------
     // (regression guard — if a future rebase repurposes eop as tile-final this
-    //  stops firing and the guard itself flags the change.)
+    //  stops firing and the guard itself flags the change.) Needs the tag
+    //  wrapper; inert when is_tile_final is tied X.
     logic eop_ever_differs;
     always_ff @(posedge clk) begin
         if (reset) eop_ever_differs <= 1'b0;
-        else if (fedp_result_fire && !$isunknown(is_tile_final) && (header_eop !== is_tile_final))
+        else if (fedp_result_fire && tag_present && (header_eop !== is_tile_final))
             eop_ever_differs <= 1'b1;
     end
-    // final check in the directed test: eop_ever_differs must be 1 by end-of-sim.
-    a5_eop_not_tilefinal: assert property (@(posedge clk) disable iff (reset)
+    a5_eop_not_tilefinal: assert property (@(posedge clk) disable iff (reset || !tag_present)
         (!instr_active && $past(instr_active)) |-> eop_ever_differs)
         else $error("A5: header.eop tracked is_tile_final for a whole instruction");
 

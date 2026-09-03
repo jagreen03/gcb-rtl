@@ -18,7 +18,9 @@ bind VX_tcu_core VX_tcu_tilefinal_sva #(
     .N_STEPS    (VX_tcu_pkg::TCU_N_STEPS),
     .K_STEPS    (VX_tcu_pkg::TCU_K_STEPS),
     .WG_K_STEPS (VX_tcu_pkg::TCU_WG_K_STEPS),
-    .UOPS       (VX_tcu_pkg::TCU_UOPS)
+    .UOPS       (VX_tcu_pkg::TCU_UOPS),
+    .TC_K       (VX_tcu_pkg::TCU_TC_K),
+    .TILE_K     (VX_tcu_pkg::TCU_TILE_K)
 ) u_tilefinal_sva (
     .clk              (clk),
     .reset            (reset),

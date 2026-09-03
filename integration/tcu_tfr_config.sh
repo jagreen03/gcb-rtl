@@ -25,8 +25,9 @@ VX_TFR_XLEN="${VX_TFR_XLEN:-32}"     # 32 (U55C target) | 64
 
 # Config sweep axis (vortex_integration_notes.md sec 8.4): {8,16} x {FP8,INT8} x
 # {WGMMA off,on}. Override before sourcing to pick a sweep point, e.g.
-#   VX_TFR_THREADS=16 VX_TFR_FMT=INT8 VX_TFR_WGMMA=1 source integration/tcu_tfr_config.sh
-VX_TFR_FMT="${VX_TFR_FMT:-FP8}"      # FP8 | INT8
+#   VX_TFR_THREADS=16 VX_TFR_FMT=FP8 VX_TFR_WGMMA=1 source integration/tcu_tfr_config.sh
+# Default INT8 — the sec 8.4 directed test (A,B = all-ones INT8, C = 0) needs it.
+VX_TFR_FMT="${VX_TFR_FMT:-INT8}"     # INT8 | FP8
 VX_TFR_WGMMA="${VX_TFR_WGMMA:-0}"    # 0 | 1
 
 _tfr_defs=(

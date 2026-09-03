@@ -112,7 +112,7 @@ VL_TB_FLAGS=( --binary -j 0 --timing --assert --language 1800-2012
               -Wno-fatal -Wno-DECLFILENAME -Wno-REDEFMACRO -Wno-GENUNNAMED
               -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -Wno-UNOPTFLAT
               --x-initial unique --x-assign unique
-              -DSIMULATION --top-module VX_tcu_unit_top
+              -DSIMULATION +define+GCB_TF_DPI --top-module VX_tcu_unit_top
               --Mdir sim_out/obj_tcu_tf )
 
 if verilator "${VL_TB_FLAGS[@]}" sim_out/verilator.vlt $XCONFIGS "${VL_TB_INC[@]}" \
@@ -125,11 +125,12 @@ if verilator "${VL_TB_FLAGS[@]}" sim_out/verilator.vlt $XCONFIGS "${VL_TB_INC[@]
         > sim_out/tcu_tf_build.log 2>&1; then
     echo "PASS stage 3 build: VX_tcu_unit_top + bound SVA elaborated"
     if sim_out/obj_tcu_tf/VVX_tcu_unit_top > sim_out/tcu_tf_run.log 2>&1 \
-       && grep -q "TCU_TILEFINAL: WMMA committed" sim_out/tcu_tf_run.log \
+       && grep -q "TCU_TILEFINAL: DIRECTED PASS" sim_out/tcu_tf_run.log \
        && ! grep -qE "%Error|Assertion failed|: A[1-5]:" sim_out/tcu_tf_run.log; then
-        echo "PASS stage 3 run: $(grep TCU_TILEFINAL sim_out/tcu_tf_run.log)"
+        echo "PASS stage 3 run:"
+        grep -E "^\[sva\]|^PASS:|TCU_TILEFINAL:" sim_out/tcu_tf_run.log | sed 's/^/  /'
     else
-        echo "FAIL stage 3 run — see sim_out/tcu_tf_run.log"; tail -20 sim_out/tcu_tf_run.log; exit 1
+        echo "FAIL stage 3 run — see sim_out/tcu_tf_run.log"; tail -25 sim_out/tcu_tf_run.log; exit 1
     fi
 else
     echo "PARTIAL stage 3: VX_tcu_unit_top build did not elaborate — see"
