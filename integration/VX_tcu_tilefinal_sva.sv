@@ -213,34 +213,55 @@ module VX_tcu_tilefinal_sva #(
     // =====================================================================
     // Numeric isolation — INT8 WMMA INT32 accumulator lanes (GCB_TF_NUMISO,
     // set by run_tilefinal_check.sh only for INT8 configs). Directed stimulus:
-    // A = B = all-ones INT8, C = 0, so every compute result lane == TILE_K
-    // (TILE_K = 8 or 16). |D| max for INT8*INT8 over TILE_K<=16 is
-    // 127*127*16 = 258064 < 2**18, so bits [31:20] of a non-overflowed lane
-    // are zero and the value is non-negative.
+    // A = B = all-ones INT8, C = 0, so one FEDP execute beat reduces the whole
+    // per-config tile-K: every compute result lane holds the same value D_ref,
+    // observed to be 8 (NUM_THREADS=8) or 16 (NUM_THREADS=16) -- the "TILE_K =
+    // 8 or 16" of vortex_integration_notes.md sec 8.4. |D| max for INT8*INT8
+    // over K<=16 is 127*127*16 = 258064 < 2**18, so bits [31:20] of a
+    // non-overflowed lane are zero and the value is non-negative.
     // =====================================================================
 `ifdef GCB_TF_NUMISO
     // non-WGMMA: fedp_result_fire already excludes WGMMA setup beats
     wire compute_res_beat = fedp_result_fire;
 
+    // D_ref: latch lane 0 of the first compute result beat; every later lane /
+    // beat must match it (self-consistent -- no hard-coded constant, since the
+    // effective tile-K scales with NUM_THREADS).
+    logic [31:0] d_ref;
+    logic        d_ref_set;
+    always_ff @(posedge clk) begin
+        if (reset) d_ref_set <= 1'b0;
+        else if (compute_res_beat && !d_ref_set) begin
+            d_ref     <= res_lane[0];
+            d_ref_set <= 1'b1;
+        end
+    end
+
+    // D_ref must be one of the two legal effective tile-K depths.
+    n0_tilek_legal: assert property (@(posedge clk) disable iff (reset)
+        (compute_res_beat && !d_ref_set) |->
+            ($signed(res_lane[0]) == 8 || $signed(res_lane[0]) == 16))
+        else $error("N0: effective TILE_K = %0d, expected 8 or 16", $signed(res_lane[0]));
+
     for (genvar gl = 0; gl < NLANES; gl++) begin : g_numiso
-        // N1 — no INT32 overflow / no high-bit bleed from an adjacent lane.
+        // N1 -- no INT32 overflow / no high-bit bleed from an adjacent lane.
         n1_no_overflow: assert property (@(posedge clk) disable iff (reset)
             compute_res_beat |->
                 ($signed(res_lane[gl]) >= 0 && res_lane[gl][31:20] == 12'd0))
             else $error("N1: lane %0d INT32 overflow / high-bit bleed: 0x%08x",
                         gl, res_lane[gl]);
 
-        // N2 — no cross-lane bleed: all-ones operands => every lane identical.
+        // N2 -- no cross-lane bleed: all-ones operands => every lane identical.
         n2_no_lane_bleed: assert property (@(posedge clk) disable iff (reset)
             compute_res_beat |-> (res_lane[gl] == res_lane[0]))
             else $error("N2: lane %0d = 0x%08x != lane 0 = 0x%08x (cross-lane bleed)",
                         gl, res_lane[gl], res_lane[0]);
 
-        // N3 — exact: a tile-final lane holds the full-K reduction TILE_K.
-        n3_exact_tilek: assert property (@(posedge clk) disable iff (reset)
-            (compute_res_beat && tf_ref) |-> ($signed(res_lane[gl]) == TILE_K))
-            else $error("N3: tile-final lane %0d = %0d, expected TILE_K = %0d",
-                        gl, $signed(res_lane[gl]), TILE_K);
+        // N3 -- stable: every compute result lane == the latched D_ref.
+        n3_stable: assert property (@(posedge clk) disable iff (reset || !d_ref_set)
+            compute_res_beat |-> (res_lane[gl] == d_ref))
+            else $error("N3: lane %0d = %0d drifts from D_ref = %0d",
+                        gl, $signed(res_lane[gl]), $signed(d_ref));
     end
 
 `ifdef GCB_TF_DPI

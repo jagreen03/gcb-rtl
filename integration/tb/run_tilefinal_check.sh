@@ -8,7 +8,8 @@
 #   1  sva-lint    — Verilator lint of VX_tcu_tilefinal_sva.sv (A1..A5)
 #   2  rtl-lint    — Verilator lint of the tag wrapper + SVA against the real
 #                    VX_gpu_pkg / VX_tcu_pkg from the vortex clone
-#   3  directed    — WMMA directed test + {8,16}x{FP8,INT8}x{WGMMA} sweep (TODO)
+#   3  directed    - directed WMMA (D==effective TILE_K) + SVA A1-A5 + N0-N3; the
+#                    {8,16}x{FP8,INT8}x{WGMMA} matrix runs via run_sweep.sh
 #
 # Requires: Verilator >= 5, python3, and the vortex sibling clone (not vendored).
 # Exit: 0 pass · 1 check failed · 2 prerequisites missing (SKIP)
@@ -84,15 +85,16 @@ else
     echo "  sim_out/rtl_lint.log. Stage 1 already validated the SVA itself."
 fi
 
-# ---- stage 3: elaborate VX_tcu_core in a real top + run one WMMA -------
-# Build Vortex's VX_tcu_unit_top with $XCONFIGS, bind VX_tcu_tilefinal_sva into
-# every VX_tcu_core (VX_tcu_tilefinal_sva_bind.sv), drive one WMMA from
-# sim_main.cpp. Elaborating inside the real top is what resolves the nested
-# execute_if.data structs that stage 2's standalone lint cannot.
-#
-# TODO: extend sim_main.cpp to the directed A=all-ones INT8 / B=identity / C=0
-# case (D[m][n] = TILE_K) + M_AXIS_CS capture + the {8,16}x{FP8,INT8}x{WGMMA}
-# sweep. For now it drives one packet so the SVA's per-instruction A1..A5 run.
+# ---- stage 3: elaborate VX_tcu_core in a real top + run the directed WMMA ---
+# Build Vortex's VX_tcu_unit_top with $XCONFIGS, bind VX_tcu_tilefinal_tag_obs +
+# VX_tcu_tilefinal_sva into every VX_tcu_core, run sim_main.cpp:
+#   P1 directed all-ones WMMA -> every D lane == effective TILE_K (8 or 16),
+#      N0..N3 numeric isolation (INT8);
+#   P2 TCU_UOPS-uop instruction -> A1/A2/A4 beat counts, tile-final RESULT beats;
+#   A3/A5 against the live tag-observer is_tile_final.
+# run_sweep.sh drives this over {8,16} x {FP8,INT8} x {WGMMA off,on}.
+# -j 2: cap g++ parallelism -- the Verilated TFR FEDP C++ is large and -j 0
+# OOM-races the box on cold back-to-back sweep rebuilds.
 
 # verilator.vlt waiver (third-party lint-off) — @VORTEX_HOME@ substituted here so
 # the vortex clone is not touched.
@@ -108,9 +110,10 @@ VL_TB_INC=(
     -I"$VORTEX/hw/unittest/tcu_unit" -I"$VORTEX/hw/unittest/common"
     -I..
 )
-VL_TB_FLAGS=( --binary -j 0 --timing --assert --language 1800-2012
+VL_TB_FLAGS=( --binary -j 2 --timing --assert --language 1800-2012
               -Wno-fatal -Wno-DECLFILENAME -Wno-REDEFMACRO -Wno-GENUNNAMED
               -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -Wno-UNOPTFLAT
+              -Wno-UNDRIVEN -Wno-PINMISSING
               --x-initial unique --x-assign unique
               -DSIMULATION +define+GCB_TF_DPI --top-module VX_tcu_unit_top
               --Mdir sim_out/obj_tcu_tf )
@@ -128,18 +131,18 @@ if verilator "${VL_TB_FLAGS[@]}" sim_out/verilator.vlt $XCONFIGS "${VL_TB_INC[@]
         --exe sim_main.cpp \
         > sim_out/tcu_tf_build.log 2>&1; then
     echo "PASS stage 3 build: VX_tcu_unit_top + bound SVA elaborated"
-    if sim_out/obj_tcu_tf/VVX_tcu_unit_top > sim_out/tcu_tf_run.log 2>&1 \
+    if sim_out/obj_tcu_tf/VVX_tcu_unit_top "+fmt=${VX_TFR_FMT}" > sim_out/tcu_tf_run.log 2>&1 \
        && grep -q "TCU_TILEFINAL: DIRECTED PASS" sim_out/tcu_tf_run.log \
-       && ! grep -qE "%Error|Assertion failed|: A[1-5]:" sim_out/tcu_tf_run.log; then
+       && ! grep -qE "%Error|Assertion failed|: A[1-5]:|: N[1-3]:" sim_out/tcu_tf_run.log; then
         echo "PASS stage 3 run:"
-        grep -E "^\[sva\]|^PASS:|TCU_TILEFINAL:" sim_out/tcu_tf_run.log | sed 's/^/  /'
+        grep -E "^\[sva\]|^\[tb\]|^PASS:|TCU_TILEFINAL:" sim_out/tcu_tf_run.log | sed 's/^/  /'
     else
         echo "FAIL stage 3 run — see sim_out/tcu_tf_run.log"; tail -25 sim_out/tcu_tf_run.log; exit 1
     fi
 else
     echo "PARTIAL stage 3: VX_tcu_unit_top build did not elaborate — see"
-    echo "  sim_out/tcu_tf_build.log (last 20 lines):"
-    tail -20 sim_out/tcu_tf_build.log
+    echo "  sim_out/tcu_tf_build.log (last 40 lines):"
+    tail -40 sim_out/tcu_tf_build.log
 fi
 
 exit 0

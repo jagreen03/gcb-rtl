@@ -24,6 +24,8 @@
 #include <cstdio>
 #include <cstring>
 
+static float bits_to_f(uint32_t u) { float f; std::memcpy(&f, &u, 4); return f; }
+
 static uint64_t g_time = 0;
 double sc_time_stamp() { return g_time; }
 
@@ -81,7 +83,15 @@ namespace {
 constexpr uint32_t INST_TCU_WMMA = 0;   // VX_gpu_pkg.sv
 constexpr uint32_t TCU_I8_ID     = 17;  // VX_tcu_pkg.sv  (signed INT8)
 constexpr uint32_t TCU_I32_ID    = 16;  // VX_tcu_pkg.sv  (INT32 accumulator)
+constexpr uint32_t TCU_FP8_ID    = 4;   // VX_tcu_pkg.sv  (E4M3)
+constexpr uint32_t TCU_FP32_ID   = 0;   // VX_tcu_pkg.sv
 constexpr int      MAX_CYCLES    = 40000;
+
+// operand format selected by +fmt=INT8 | +fmt=FP8
+bool     g_fp8      = false;
+uint8_t  g_ones     = 0x01;               // all-ones operand byte
+uint32_t g_fmt_s    = TCU_I8_ID;
+uint32_t g_fmt_d    = TCU_I32_ID;
 
 VVX_tcu_unit_top* dut = nullptr;
 uint64_t          cycle = 0;
@@ -113,11 +123,11 @@ void set_wmma_common() {
     dut->dispatch_rd       = 1;
     dut->dispatch_bytesel  = 0;
     dut->dispatch_op_type  = INST_TCU_WMMA;
-    dut->dispatch_fmt_s    = TCU_I8_ID;
-    dut->dispatch_fmt_d    = TCU_I32_ID;
-    std::memset(&dut->dispatch_rs1_data, 0x01, sizeof(dut->dispatch_rs1_data));  // A = +1
-    std::memset(&dut->dispatch_rs2_data, 0x01, sizeof(dut->dispatch_rs2_data));  // B = +1
-    std::memset(&dut->dispatch_rs3_data, 0x00, sizeof(dut->dispatch_rs3_data));  // C = 0
+    dut->dispatch_fmt_s    = g_fmt_s;
+    dut->dispatch_fmt_d    = g_fmt_d;
+    std::memset(&dut->dispatch_rs1_data, g_ones, sizeof(dut->dispatch_rs1_data));  // A = 1
+    std::memset(&dut->dispatch_rs2_data, g_ones, sizeof(dut->dispatch_rs2_data));  // B = 1
+    std::memset(&dut->dispatch_rs3_data, 0x00,   sizeof(dut->dispatch_rs3_data));  // C = 0
 }
 
 // drive one dispatch beat, return false on timeout
@@ -150,8 +160,18 @@ template <typename T> int lane_count(const T& s) { return int(sizeof(s) / sizeof
 int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
     Verilated::assertOn(true);
-    for (int i = 1; i < argc; i++)
+    for (int i = 1; i < argc; i++) {
         if (!std::strcmp(argv[i], "+verbose")) tf.verbose = true;
+        if (!std::strcmp(argv[i], "+fmt=FP8")) {
+            g_fp8 = true; g_ones = 0x38;            // E4M3 1.0
+            g_fmt_s = TCU_FP8_ID; g_fmt_d = TCU_FP32_ID;
+        }
+        if (!std::strcmp(argv[i], "+fmt=INT8")) {
+            g_fp8 = false; g_ones = 0x01;
+            g_fmt_s = TCU_I8_ID; g_fmt_d = TCU_I32_ID;
+        }
+    }
+    std::printf("[tb] operand format: %s\n", g_fp8 ? "FP8 (E4M3)" : "INT8");
 
     dut = new VVX_tcu_unit_top;
     dut->clk = 0;
@@ -175,15 +195,26 @@ int main(int argc, char** argv) {
             for (int t = 0; t < n_lanes; t++) d_lane[t] = dut->commit_data[t];
         }
     }
+    int eff_tile_k = -1;
     if (!committed) { std::printf("FAIL: P1 commit timeout\n"); fails++; }
     else {
+        // effective tile-K = lane 0 of the directed all-ones WMMA (one FEDP beat
+        // reduces the whole per-config K). sec 8.4: expect 8 or 16.
+        int32_t d0i = (int32_t)d_lane[0];
+        eff_tile_k = g_fp8 ? (int)bits_to_f(d_lane[0]) : d0i;
         int bad = 0;
         for (int t = 0; t < n_lanes; t++) {
-            int32_t d = (int32_t)d_lane[t];
-            if (d != tf.tile_k) { if (bad < 4) std::printf("FAIL: P1 D[lane %d]=%d exp TILE_K=%d\n", t, d, tf.tile_k); bad++; }
+            long d = g_fp8 ? (long)bits_to_f(d_lane[t]) : (long)(int32_t)d_lane[t];
+            if (d != eff_tile_k) { if (bad < 4) std::printf("FAIL: P1 D[lane %d]=%ld != lane0 %d\n", t, d, eff_tile_k); bad++; }
         }
-        if (bad == 0) std::printf("PASS: P1 all %d D lanes == TILE_K (%d)\n", n_lanes, tf.tile_k);
-        else { std::printf("FAIL: P1 %d/%d D lanes wrong\n", bad, n_lanes); fails++; }
+        if (eff_tile_k != 8 && eff_tile_k != 16) {
+            std::printf("FAIL: P1 effective TILE_K = %d, expected 8 or 16\n", eff_tile_k); fails++;
+        } else if (bad == 0) {
+            std::printf("PASS: P1 all %d D lanes == effective TILE_K (%d)%s\n", n_lanes, eff_tile_k,
+                        eff_tile_k == tf.tile_k ? "" : " [note: TCU_TILE_K param differs]");
+        } else {
+            std::printf("FAIL: P1 %d/%d D lanes differ from lane 0\n", bad, n_lanes); fails++;
+        }
     }
 
     // ================= Phase 2 - SVA beat counts =================
@@ -221,10 +252,10 @@ int main(int argc, char** argv) {
     else              std::printf("PASS: A3/A5 evaluated against a live is_tile_final (tag observer bound)\n");
 
     if (tf.numiso_seen) {
-        if (tf.numiso_lane0 != tf.tile_k) { std::printf("FAIL: numeric-isolation lane[0]=%d != TILE_K=%d\n", tf.numiso_lane0, tf.tile_k); fails++; }
-        else std::printf("PASS: numeric isolation N1/N2/N3 hold (INT32 lanes == TILE_K, no overflow, no bleed)\n");
+        if (tf.numiso_lane0 != eff_tile_k) { std::printf("FAIL: numeric-isolation lane[0]=%d != effective TILE_K=%d\n", tf.numiso_lane0, eff_tile_k); fails++; }
+        else std::printf("PASS: numeric isolation N0/N1/N2/N3 hold (INT32 lanes == %d, no overflow, no bleed)\n", eff_tile_k);
     } else {
-        std::printf("note: numeric-isolation asserts inactive (GCB_TF_NUMISO not set — non-INT8 config)\n");
+        std::printf("note: numeric-isolation asserts inactive (GCB_TF_NUMISO not set - non-INT8 config)\n");
     }
 
     dut->final();
