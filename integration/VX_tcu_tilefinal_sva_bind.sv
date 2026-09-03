@@ -1,3 +1,4 @@
+`include "VX_define.vh"
 // =============================================================================
 // GreenCoyote-Bay <-> Vortex 3.0 - tile-final SVA + tag binds
 // =============================================================================
@@ -33,7 +34,8 @@ bind VX_tcu_core VX_tcu_tilefinal_sva #(
     .WG_K_STEPS (VX_tcu_pkg::TCU_WG_K_STEPS),
     .UOPS       (VX_tcu_pkg::TCU_UOPS),
     .TC_K       (VX_tcu_pkg::TCU_TC_K),
-    .TILE_K     (VX_tcu_pkg::TCU_TILE_K)
+    .TILE_K     (VX_tcu_pkg::TCU_TILE_K),
+    .NLANES     (`VX_CFG_NUM_TCU_LANES)
 ) u_tilefinal_sva (
     .clk              (clk),
     .reset            (reset),
@@ -49,5 +51,6 @@ bind VX_tcu_core VX_tcu_tilefinal_sva #(
     .step_n           (step_n),
     .step_k           (step_k),
     .is_tile_final    (u_tf_tag_obs.is_tile_final),
-    .header_eop       (result_if.data.header.eop)
+    .header_eop       (result_if.data.header.eop),
+    .res_lane         (result_if.data.data)
 );

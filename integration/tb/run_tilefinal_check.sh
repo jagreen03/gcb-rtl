@@ -114,6 +114,8 @@ VL_TB_FLAGS=( --binary -j 0 --timing --assert --language 1800-2012
               --x-initial unique --x-assign unique
               -DSIMULATION +define+GCB_TF_DPI --top-module VX_tcu_unit_top
               --Mdir sim_out/obj_tcu_tf )
+# INT8 configs get the INT32-accumulator numeric-isolation asserts (N1/N2/N3).
+[ "$VX_TFR_FMT" = "INT8" ] && VL_TB_FLAGS+=( +define+GCB_TF_NUMISO )
 
 if verilator "${VL_TB_FLAGS[@]}" sim_out/verilator.vlt $XCONFIGS "${VL_TB_INC[@]}" \
         "$VORTEX/hw/rtl/VX_gpu_pkg.sv" \

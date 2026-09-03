@@ -35,7 +35,8 @@ module VX_tcu_tilefinal_sva #(
     parameter int WG_K_STEPS = 2,
     parameter int UOPS       = 16,
     parameter int TC_K       = 2,       // per-uop K depth (VX_tcu_pkg::TCU_TC_K)
-    parameter int TILE_K     = 4        // full tile K = TC_K * K_STEPS (TCU_TILE_K)
+    parameter int TILE_K     = 4,       // full tile K = TC_K * K_STEPS (TCU_TILE_K)
+    parameter int NLANES     = 8        // VX_gpu_pkg::NUM_TCU_LANES (result lanes)
 )(
     input  logic       clk,
     input  logic       reset,
@@ -52,7 +53,10 @@ module VX_tcu_tilefinal_sva #(
     // Marker under test (VX_tcu_tilefinal_tag.is_tile_final) and the eop it must
     // NOT track. Tie is_tile_final to 1'bx when the tag wrapper is not bound.
     input  logic       is_tile_final,
-    input  logic       header_eop
+    input  logic       header_eop,
+
+    // result_if.data.data — per-lane INT32/FP32 result words (numeric isolation)
+    input  logic [NLANES-1:0][31:0] res_lane
 );
 
 `ifdef SIMULATION
@@ -205,6 +209,52 @@ module VX_tcu_tilefinal_sva #(
     a5_eop_not_tilefinal: assert property (@(posedge clk) disable iff (reset || !tag_present)
         (!instr_active && $past(instr_active)) |-> eop_ever_differs)
         else $error("A5: header.eop tracked is_tile_final for a whole instruction");
+
+    // =====================================================================
+    // Numeric isolation — INT8 WMMA INT32 accumulator lanes (GCB_TF_NUMISO,
+    // set by run_tilefinal_check.sh only for INT8 configs). Directed stimulus:
+    // A = B = all-ones INT8, C = 0, so every compute result lane == TILE_K
+    // (TILE_K = 8 or 16). |D| max for INT8*INT8 over TILE_K<=16 is
+    // 127*127*16 = 258064 < 2**18, so bits [31:20] of a non-overflowed lane
+    // are zero and the value is non-negative.
+    // =====================================================================
+`ifdef GCB_TF_NUMISO
+    // non-WGMMA: fedp_result_fire already excludes WGMMA setup beats
+    wire compute_res_beat = fedp_result_fire;
+
+    for (genvar gl = 0; gl < NLANES; gl++) begin : g_numiso
+        // N1 — no INT32 overflow / no high-bit bleed from an adjacent lane.
+        n1_no_overflow: assert property (@(posedge clk) disable iff (reset)
+            compute_res_beat |->
+                ($signed(res_lane[gl]) >= 0 && res_lane[gl][31:20] == 12'd0))
+            else $error("N1: lane %0d INT32 overflow / high-bit bleed: 0x%08x",
+                        gl, res_lane[gl]);
+
+        // N2 — no cross-lane bleed: all-ones operands => every lane identical.
+        n2_no_lane_bleed: assert property (@(posedge clk) disable iff (reset)
+            compute_res_beat |-> (res_lane[gl] == res_lane[0]))
+            else $error("N2: lane %0d = 0x%08x != lane 0 = 0x%08x (cross-lane bleed)",
+                        gl, res_lane[gl], res_lane[0]);
+
+        // N3 — exact: a tile-final lane holds the full-K reduction TILE_K.
+        n3_exact_tilek: assert property (@(posedge clk) disable iff (reset)
+            (compute_res_beat && tf_ref) |-> ($signed(res_lane[gl]) == TILE_K))
+            else $error("N3: tile-final lane %0d = %0d, expected TILE_K = %0d",
+                        gl, $signed(res_lane[gl]), TILE_K);
+    end
+
+`ifdef GCB_TF_DPI
+    // kind 5 = first compute result beat's lane-0 value (a=value, b=NLANES)
+    logic numiso_reported;
+    always_ff @(posedge clk) begin
+        if (reset) numiso_reported <= 1'b0;
+        else if (compute_res_beat && !numiso_reported) begin
+            numiso_reported <= 1'b1;
+            gcb_tf_event(5, int'($signed(res_lane[0])), NLANES, 0);
+        end
+    end
+`endif
+`endif
 
 `endif
 

@@ -36,6 +36,8 @@ struct TfState {
     int  last_beats_in = -1, last_tf_in = -1, last_tf_result = -1;
     int  enqueues = 0, results = 0, tf_result_beats = 0;
     bool tag_live = false;
+    bool numiso_seen = false;
+    int  numiso_lane0 = -1;
     bool verbose = false;
 } tf;
 }
@@ -64,6 +66,11 @@ extern "C" void gcb_tf_event(int kind, int a, int b, int c) {
     case 4:
         tf.tag_live = true;
         std::printf("[sva] VX_tcu_tilefinal_tag observer live -> A3/A5 evaluating\n");
+        break;
+    case 5:
+        tf.numiso_seen = true;
+        tf.numiso_lane0 = a;
+        std::printf("[sva] numeric isolation active: result lane[0]=%d across %d lanes (N1/N2/N3)\n", a, b);
         break;
     default: break;
     }
@@ -212,6 +219,13 @@ int main(int argc, char** argv) {
     }
     if (!tf.tag_live) { std::printf("FAIL: VX_tcu_tilefinal_tag observer never went live (A3/A5 did not evaluate)\n"); fails++; }
     else              std::printf("PASS: A3/A5 evaluated against a live is_tile_final (tag observer bound)\n");
+
+    if (tf.numiso_seen) {
+        if (tf.numiso_lane0 != tf.tile_k) { std::printf("FAIL: numeric-isolation lane[0]=%d != TILE_K=%d\n", tf.numiso_lane0, tf.tile_k); fails++; }
+        else std::printf("PASS: numeric isolation N1/N2/N3 hold (INT32 lanes == TILE_K, no overflow, no bleed)\n");
+    } else {
+        std::printf("note: numeric-isolation asserts inactive (GCB_TF_NUMISO not set — non-INT8 config)\n");
+    }
 
     dut->final();
     delete dut;
