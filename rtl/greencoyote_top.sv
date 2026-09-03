@@ -81,6 +81,12 @@ module greencoyote_top #(
     output logic [7:0]  dac_valid,
     output logic        dac_sync,
 
+    // Reconstructed partial sum — cascade stage / fabric output
+    // (carry_save_streaming_contract.md sec 5.4, sec 8.3). Q17.14 two's
+    // complement; sample on stage_result_valid (1 cycle, at reduction done).
+    output logic signed [31:0] stage_result,
+    output logic               stage_result_valid,
+
     // Parallel DAC interface — bench loopback stimulus (greencoyote_dac_if)
     // 14-bit word + channel-select + write strobe, generic parallel-DAC timing
     output logic [13:0] dac_p_data,
@@ -525,6 +531,10 @@ greencoyote_photonic_sequencer u_sequencer (
     .blk_exp_last       (blk_exp_last),
     .blk_scale_clamp    (blk_scale_clamp),
     .lane_bias_n        (lane_bias_n),
+
+    // Reconstructed partial sum -> top-level cascade / fabric output
+    .stage_result       (stage_result),
+    .stage_result_valid (stage_result_valid),
 
     // Buffer interface (via the CS_FIFO_PATH mux)
     .buf_data           (seq_buf_data),

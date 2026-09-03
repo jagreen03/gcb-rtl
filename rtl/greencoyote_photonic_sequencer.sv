@@ -46,6 +46,10 @@ module greencoyote_photonic_sequencer (
     output logic        blk_scale_clamp,        // Sticky: a lane clamped in the BFP window (sec 5.1/sec 7)
     output logic [3:0]  lane_bias_n,            // Active lane count latched at fire (sec 5.3 de-bias)
 
+    // --- Reconstructed partial sum — cascade stage / fabric output (contract sec 8.3) ---
+    output logic signed [31:0] stage_result,    // (adc - n*2048) <<< blk_exp, Q17.14 (sec 5.4)
+    output logic        stage_result_valid,     // 1-cycle strobe at reduction completion
+
     // --- Buffer Interface (from GPU partial sum buffers) ---
     input  logic [31:0] buf_data [0:7],         // Partial sum per GPU channel
     input  logic [7:0]  buf_full,               // Per-channel ready flags
@@ -134,9 +138,7 @@ logic               bfp_any_clamp;     // any active lane hit the [0,4095] clamp
 // --- BFP state latched at NORMALIZE, consumed in CAPTURE/CAPTURE2 (sec 5.4) ------
 logic [4:0]  blk_exp_r;             // shared block exponent for the in-flight fire
 logic [3:0]  lane_bias_n_r;         // active lane count (= queue_depth) at fire
-logic signed [31:0] stage_result;  // sec 5.4 reconstruction: (adc - n*2048) <<< blk_exp,
-                                   // Q17.14, forwarded to the next cascade stage /
-                                   // fabric output (no dedicated port yet — contract sec 8.3)
+// stage_result (sec 5.4 reconstruction) is now a module output port.
 logic signed [17:0] adc_debiased;  // adc_data_sync - lane_bias_n_r*2048 (pre-shift)
 
 // --- Per-lane stochastic-rounding dither -------------------------------------
@@ -350,16 +352,18 @@ always_ff @(posedge clk or negedge rst_n) begin
         blk_exp_r       <= 5'd0;
         lane_bias_n_r   <= 4'd0;
         blk_scale_clamp <= 1'b0;
-        stage_result    <= 32'sd0;
+        stage_result       <= 32'sd0;
+        stage_result_valid <= 1'b0;
         for (int i = 0; i < NUM_CH; i++)
             dac_data[i] <= 12'h000;
     end else begin
 
         // Default deassert
-        dac_sync  <= 1'b0;
-        fire_done <= 1'b0;
-        buf_clear <= 8'h00;
-        dac_valid <= 8'h00;
+        dac_sync           <= 1'b0;
+        fire_done          <= 1'b0;
+        stage_result_valid <= 1'b0;
+        buf_clear          <= 8'h00;
+        dac_valid          <= 8'h00;
 
         case (state)
 
@@ -480,10 +484,12 @@ always_ff @(posedge clk or negedge rst_n) begin
 
             // -----------------------------------------------------------------
             DONE: begin
-                fire_done   <= 1'b1;
-                mode_active <= 1'b0;
-                buf_clear   <= buf_full;    // Clear all filled buffers
-                state       <= IDLE;
+                fire_done          <= 1'b1;
+                stage_result_valid <= 1'b1;   // stage_result holds this reduction's
+                                              // sec 5.4 reconstruction (last stage)
+                mode_active        <= 1'b0;
+                buf_clear          <= buf_full;    // Clear all filled buffers
+                state              <= IDLE;
             end
 
             default: state <= IDLE;
@@ -509,10 +515,15 @@ assign lane_bias_n  = lane_bias_n_r;
 // blk_scale_clamp is a sticky reg driven in the FSM.
 
 // =============================================================================
-// Pass 2 result output
-// Available on pass2_sum[11:0] when pass_index == 2'b10 (raw ADC domain);
-// stage_result carries the sec 5.4-reconstructed Q17.14 partial sum for the
-// cascade / fabric output.
+// Result outputs
+//   pass2_sum[11:0]      raw ADC-domain digital sum of the 14-GPU two-pass
+//                        (internal; valid when pass_index == 2'b10)
+//   stage_result         sec 5.4-reconstructed Q17.14 partial sum of the last
+//                        captured stage, held until the next reduction; sampled
+//                        by the downstream cascade / fabric on stage_result_valid
+//                        (one cycle, coincident with fire_done). For the 14-GPU
+//                        two-pass this reflects the Pass 1b sub-reduction; a full
+//                        two-pass digital recombination is future work.
 // =============================================================================
 
 endmodule

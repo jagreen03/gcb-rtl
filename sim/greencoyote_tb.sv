@@ -61,6 +61,10 @@ logic [11:0] dac_data [0:7];
 logic [7:0]  dac_valid;
 logic        dac_sync;
 
+// Reconstructed partial-sum output (contract sec 5.4 / sec 8.3)
+logic signed [31:0] stage_result;
+logic               stage_result_valid;
+
 // Parallel DAC interface — bench loopback (greencoyote_dac_if)
 logic [13:0] dac_p_data;
 logic [2:0]  dac_p_chan;
@@ -116,6 +120,8 @@ greencoyote_top dut (
     .dac_data           (dac_data),
     .dac_valid          (dac_valid),
     .dac_sync           (dac_sync),
+    .stage_result       (stage_result),
+    .stage_result_valid (stage_result_valid),
     .dac_p_data         (dac_p_data),
     .dac_p_chan         (dac_p_chan),
     .dac_p_clk          (dac_p_clk),
@@ -179,20 +185,27 @@ end
 // so latch them for the checkers. Cleared per test via clear_events().
 // =============================================================================
 
-logic [7:0] buf_clear_seen;
-logic       saw_pass1b;
-logic       saw_pass2;
+logic [7:0]         buf_clear_seen;
+logic               saw_pass1b;
+logic               saw_pass2;
+logic               saw_stage_valid;
+logic signed [31:0] stage_result_latched;
 
 always @(posedge clk) begin
     if (|buf_clear)              buf_clear_seen <= buf_clear;
     if (dut.pass_index == 2'b01) saw_pass1b     <= 1'b1;
     if (dut.pass_index == 2'b10) saw_pass2      <= 1'b1;
+    if (stage_result_valid) begin
+        saw_stage_valid      <= 1'b1;
+        stage_result_latched <= stage_result;
+    end
 end
 
 task clear_events();
-    buf_clear_seen = 8'h00;
-    saw_pass1b     = 1'b0;
-    saw_pass2      = 1'b0;
+    buf_clear_seen  = 8'h00;
+    saw_pass1b      = 1'b0;
+    saw_pass2       = 1'b0;
+    saw_stage_valid = 1'b0;
 endtask
 
 // =============================================================================
@@ -327,6 +340,12 @@ task tc1_auto_fire();
         $display("[%0t] PASS TC1: buf_clear correct 0xFF", $time);
     else
         $display("[%0t] FAIL TC1: buf_clear_seen = 0x%02X expected 0xFF", $time, buf_clear_seen);
+
+    // Verify the reconstructed partial sum was published (contract sec 5.4/sec 8.3)
+    if (saw_stage_valid)
+        $display("[%0t] PASS TC1: stage_result_valid pulsed (stage_result=0x%08X)", $time, stage_result_latched);
+    else
+        $display("[%0t] FAIL TC1: stage_result_valid never pulsed", $time);
 
     // Clear interrupt
     axi_write(6'h14, 32'h0000_0203);  // IRQ_CLEAR=1
