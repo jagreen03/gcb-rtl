@@ -81,11 +81,24 @@ module greencoyote_top #(
     output logic [7:0]  dac_valid,
     output logic        dac_sync,
 
-    // Reconstructed partial sum — cascade stage / fabric output
-    // (carry_save_streaming_contract.md sec 5.4, sec 8.3). Q17.14 two's
-    // complement; sample on stage_result_valid (1 cycle, at reduction done).
+    // Reconstructed partial sum — raw sequencer tap, for observation / bring-up.
+    // Q17.14 two's complement; sample on stage_result_valid (1 cycle, at
+    // reduction done). The routed fabric egress is M_AXIS_RESULT below.
     output logic signed [31:0] stage_result,
     output logic               stage_result_valid,
+
+    // M_AXIS_RESULT — carry-save reduction egress, AXI4-Stream master
+    // (carry_save_streaming_contract.md sec 5.4: "forwarded to the next cascade
+    // stage or the fabric output ... closed under cascading"). One beat per
+    // reduction (TLAST always 1), same Q17.14 word a compute unit would feed
+    // into M_AXIS_CS, so a downstream cascade cell consumes it unchanged.
+    output logic        m_axis_res_tvalid,
+    input  logic        m_axis_res_tready,
+    output logic [31:0] m_axis_res_tdata,      // stage_result, Q17.14
+    output logic        m_axis_res_tlast,
+    output logic [3:0]  m_axis_res_tid,        // pass_index (cascade pass)
+    output logic [5:0]  m_axis_res_tuser,      // {clamp, cal_err, pass_index, overrun, 0}
+    output logic [3:0]  m_axis_res_tkeep,
 
     // Parallel DAC interface — bench loopback stimulus (greencoyote_dac_if)
     // 14-bit word + channel-select + write strobe, generic parallel-DAC timing
@@ -551,6 +564,55 @@ greencoyote_photonic_sequencer u_sequencer (
     .adc_valid          (adc_valid),
     .conv_fault         (conv_fault)
 );
+
+// =============================================================================
+// M_AXIS_RESULT egress — 1-deep skid on the reconstructed partial sum.
+// stage_result_valid is a 1-cycle strobe with no handshake; hold the word
+// until a fabric consumer takes it. A result arriving while the holding
+// register is still occupied sets the sticky res_overrun (a stalled downstream
+// cascade — reported in TUSER; the reduction itself already completed).
+// =============================================================================
+
+logic        res_hold_valid;
+logic [31:0] res_hold_data;
+logic [1:0]  res_hold_pass;
+logic        res_hold_clamp;
+logic        res_hold_calerr;
+logic        res_overrun;
+
+wire res_hs = m_axis_res_tvalid && m_axis_res_tready;
+
+always_ff @(posedge user_clk or negedge peripheral_aresetn) begin
+    if (!peripheral_aresetn) begin
+        res_hold_valid  <= 1'b0;
+        res_hold_data   <= 32'h0;
+        res_hold_pass   <= 2'b00;
+        res_hold_clamp  <= 1'b0;
+        res_hold_calerr <= 1'b0;
+        res_overrun     <= 1'b0;
+    end else begin
+        if (res_hs) res_hold_valid <= 1'b0;
+        if (stage_result_valid) begin
+            if (res_hold_valid && !res_hs) begin
+                res_overrun <= 1'b1;              // consumer behind — sticky
+            end else begin
+                res_hold_valid  <= 1'b1;
+                res_hold_data   <= stage_result;
+                res_hold_pass   <= pass_index;
+                res_hold_clamp  <= blk_scale_clamp;
+                res_hold_calerr <= cal_err;
+            end
+        end
+    end
+end
+
+assign m_axis_res_tvalid = res_hold_valid;
+assign m_axis_res_tdata  = res_hold_data;
+assign m_axis_res_tlast  = 1'b1;                  // one beat per reduction (sec 6.1)
+assign m_axis_res_tid    = {2'b00, res_hold_pass};
+assign m_axis_res_tuser  = {res_hold_clamp, res_hold_calerr, res_hold_pass,
+                            res_overrun, 1'b0};
+assign m_axis_res_tkeep  = 4'hF;
 
 // =============================================================================
 // Module: Parallel DAC Interface — bench loopback stimulus

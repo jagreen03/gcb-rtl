@@ -44,6 +44,14 @@ logic        dac_sync;
 logic signed [31:0] stage_result;
 logic               stage_result_valid;
 
+logic        m_axis_res_tvalid;
+logic        m_axis_res_tready = 1'b1;
+logic [31:0] m_axis_res_tdata;
+logic        m_axis_res_tlast;
+logic [3:0]  m_axis_res_tid;
+logic [5:0]  m_axis_res_tuser;
+logic [3:0]  m_axis_res_tkeep;
+
 logic [13:0] dac_p_data;  logic [2:0] dac_p_chan;
 logic        dac_p_clk,   dac_p_wr_n;
 logic        adc_sclk, adc_cs_n, adc_mosi, adc_miso;
@@ -81,6 +89,10 @@ greencoyote_top #(
     .buf_data(buf_data), .buf_full(buf_full), .buf_clear(buf_clear),
     .dac_data(dac_data), .dac_valid(dac_valid), .dac_sync(dac_sync),
     .stage_result(stage_result), .stage_result_valid(stage_result_valid),
+    .m_axis_res_tvalid(m_axis_res_tvalid), .m_axis_res_tready(m_axis_res_tready),
+    .m_axis_res_tdata(m_axis_res_tdata), .m_axis_res_tlast(m_axis_res_tlast),
+    .m_axis_res_tid(m_axis_res_tid), .m_axis_res_tuser(m_axis_res_tuser),
+    .m_axis_res_tkeep(m_axis_res_tkeep),
     .dac_p_data(dac_p_data), .dac_p_chan(dac_p_chan),
     .dac_p_clk(dac_p_clk),   .dac_p_wr_n(dac_p_wr_n),
     .adc_sclk(adc_sclk), .adc_cs_n(adc_cs_n), .adc_mosi(adc_mosi), .adc_miso(adc_miso),
@@ -116,12 +128,20 @@ logic saw_dac_sync;
 logic [7:0] saw_cs_clear;
 logic saw_stage_valid;
 logic signed [31:0] stage_result_latched;
+logic saw_res_beat;
+logic [31:0] res_beat_data;
+logic [5:0]  res_beat_user;
 always @(posedge user_clk) begin
     if (dac_sync)          saw_dac_sync <= 1'b1;
     if (|dut.cs_buf_clear) saw_cs_clear <= dut.cs_buf_clear;
     if (stage_result_valid) begin
         saw_stage_valid      <= 1'b1;
         stage_result_latched <= stage_result;
+    end
+    if (m_axis_res_tvalid && m_axis_res_tready) begin
+        saw_res_beat  <= 1'b1;
+        res_beat_data <= m_axis_res_tdata;
+        res_beat_user <= m_axis_res_tuser;
     end
 end
 
@@ -130,6 +150,7 @@ function automatic void clear_strobes();
     saw_dac_sync    = 1'b0;
     saw_cs_clear    = 8'h00;
     saw_stage_valid = 1'b0;
+    saw_res_beat    = 1'b0;
 endfunction
 
 // ---- AXI-Lite write ----
@@ -205,6 +226,11 @@ initial begin
     // ---- C6: reconstructed partial sum published (contract sec 5.4/sec 8.3) ----
     check(saw_stage_valid,
           $sformatf("C6: stage_result_valid pulsed (stage_result=0x%08X)", stage_result_latched));
+
+    // ---- C7: M_AXIS_RESULT egress carried it to the fabric boundary ----
+    check(saw_res_beat && res_beat_data == stage_result_latched,
+          $sformatf("C7: M_AXIS_RESULT beat = stage_result (0x%08X, tuser=0x%02X)",
+                    res_beat_data, res_beat_user));
 
     // clear IRQ, drop AUTO_FIRE so a re-fill does not immediately fire
     axi_write(8'h14, 32'h0000_0203);

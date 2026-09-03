@@ -65,6 +65,15 @@ logic        dac_sync;
 logic signed [31:0] stage_result;
 logic               stage_result_valid;
 
+// M_AXIS_RESULT egress — fabric consumer always ready in this TB
+logic        m_axis_res_tvalid;
+logic        m_axis_res_tready = 1'b1;
+logic [31:0] m_axis_res_tdata;
+logic        m_axis_res_tlast;
+logic [3:0]  m_axis_res_tid;
+logic [5:0]  m_axis_res_tuser;
+logic [3:0]  m_axis_res_tkeep;
+
 // Parallel DAC interface — bench loopback (greencoyote_dac_if)
 logic [13:0] dac_p_data;
 logic [2:0]  dac_p_chan;
@@ -122,6 +131,13 @@ greencoyote_top dut (
     .dac_sync           (dac_sync),
     .stage_result       (stage_result),
     .stage_result_valid (stage_result_valid),
+    .m_axis_res_tvalid  (m_axis_res_tvalid),
+    .m_axis_res_tready  (m_axis_res_tready),
+    .m_axis_res_tdata   (m_axis_res_tdata),
+    .m_axis_res_tlast   (m_axis_res_tlast),
+    .m_axis_res_tid     (m_axis_res_tid),
+    .m_axis_res_tuser   (m_axis_res_tuser),
+    .m_axis_res_tkeep   (m_axis_res_tkeep),
     .dac_p_data         (dac_p_data),
     .dac_p_chan         (dac_p_chan),
     .dac_p_clk          (dac_p_clk),
@@ -190,6 +206,8 @@ logic               saw_pass1b;
 logic               saw_pass2;
 logic               saw_stage_valid;
 logic signed [31:0] stage_result_latched;
+logic               saw_res_beat;
+logic [31:0]        res_beat_data;
 
 always @(posedge clk) begin
     if (|buf_clear)              buf_clear_seen <= buf_clear;
@@ -199,10 +217,15 @@ always @(posedge clk) begin
         saw_stage_valid      <= 1'b1;
         stage_result_latched <= stage_result;
     end
+    if (m_axis_res_tvalid && m_axis_res_tready) begin
+        saw_res_beat  <= 1'b1;
+        res_beat_data <= m_axis_res_tdata;
+    end
 end
 
 task clear_events();
     buf_clear_seen  = 8'h00;
+    saw_res_beat    = 1'b0;
     saw_pass1b      = 1'b0;
     saw_pass2       = 1'b0;
     saw_stage_valid = 1'b0;
@@ -346,6 +369,15 @@ task tc1_auto_fire();
         $display("[%0t] PASS TC1: stage_result_valid pulsed (stage_result=0x%08X)", $time, stage_result_latched);
     else
         $display("[%0t] FAIL TC1: stage_result_valid never pulsed", $time);
+
+    // Verify M_AXIS_RESULT egress carried that same word to the fabric boundary
+    // (egress is a registered 1-deep skid — allow the handshake to land)
+    repeat(3) @(posedge clk);
+    if (saw_res_beat && res_beat_data == stage_result_latched)
+        $display("[%0t] PASS TC1: M_AXIS_RESULT beat = stage_result (0x%08X)", $time, res_beat_data);
+    else
+        $display("[%0t] FAIL TC1: M_AXIS_RESULT saw=%0b data=0x%08X exp=0x%08X",
+                 $time, saw_res_beat, res_beat_data, stage_result_latched);
 
     // Clear interrupt
     axi_write(6'h14, 32'h0000_0203);  // IRQ_CLEAR=1
