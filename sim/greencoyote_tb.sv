@@ -83,6 +83,16 @@ logic        interrupt;
 greencoyote_top dut (
     .user_clk           (clk),
     .peripheral_aresetn (rst_n),
+    .core_clk           (clk),          // CS_FIFO_PATH=0: second clock unused
+
+    // M_AXIS_CS carry-save stream slave — idle in this TB (legacy buf_* path)
+    .m_axis_cs_tvalid   (1'b0),
+    .m_axis_cs_tready   (),
+    .m_axis_cs_tdata    (32'h0),
+    .m_axis_cs_tlast    (1'b0),
+    .m_axis_cs_tid      (4'h0),
+    .m_axis_cs_tuser    (6'h0),
+    .m_axis_cs_tkeep    (4'hF),
     .s_axi_awaddr       (s_axi_awaddr),
     .s_axi_awvalid      (s_axi_awvalid),
     .s_axi_awready      (s_axi_awready),

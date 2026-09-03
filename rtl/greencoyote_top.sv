@@ -26,9 +26,20 @@
 //   with the real subsystem status buses as each block is brought up.
 // =============================================================================
 
-module greencoyote_top (
+module greencoyote_top #(
+    // Buffer source for the photonic sequencer:
+    //   0 (default) — legacy external buf_data/buf_full/buf_clear ports
+    //   1           — the M_AXIS_CS per-lane dual-clock FIFO read side
+    //                 (set once the Vortex shim drives M_AXIS_CS — contract sec 8.3)
+    parameter bit CS_FIFO_PATH = 1'b0,
+    parameter int CS_FIFO_AW   = 2          // per-lane FIFO depth = 2**AW (sec 6.3: >= 2, rec 4)
+)(
     input  logic        user_clk,
     input  logic        peripheral_aresetn,
+
+    // Second clock — Vortex TCU block core clock; M_AXIS_CS write domain.
+    // Tie to user_clk when CS_FIFO_PATH = 0.
+    input  logic        core_clk,
 
     // AXI-Lite Slave Interface — from Alveo U55C Vitis shell
     input  logic [7:0]  s_axi_awaddr,
@@ -49,10 +60,21 @@ module greencoyote_top (
     output logic        s_axi_rvalid,
     input  logic        s_axi_rready,
 
-    // GPU partial sum buffer interface
+    // GPU partial sum buffer interface (legacy / bench path — CS_FIFO_PATH = 0)
     input  logic [31:0] buf_data [0:7],
     input  logic [7:0]  buf_full,
     output logic [7:0]  buf_clear,
+
+    // M_AXIS_CS — carry-save stream slave, one per Vortex TCU block
+    // (carry_save_streaming_contract.md sec 6.1). Beats are demux'd by
+    // TUSER[3:0] (cell_lane) into the per-lane dual-clock FIFOs below.
+    input  logic        m_axis_cs_tvalid,
+    output logic        m_axis_cs_tready,
+    input  logic [31:0] m_axis_cs_tdata,
+    input  logic        m_axis_cs_tlast,
+    input  logic [3:0]  m_axis_cs_tid,
+    input  logic [5:0]  m_axis_cs_tuser,
+    input  logic [3:0]  m_axis_cs_tkeep,
 
     // Native DAC PHY — per-channel 12-bit bus to the laser drivers
     output logic [11:0] dac_data  [0:7],
@@ -182,6 +204,80 @@ logic [3:0]  lane_bias_n;
 // =============================================================================
 
 logic        irq_out;
+
+// =============================================================================
+// M_AXIS_CS ingress — per-lane dual-clock FIFOs (carry_save_streaming_contract.md
+// sec 6). One async FIFO per optical lane: write side core_clk (Vortex TCU
+// block), read side user_clk (pilot). A beat is steered to FIFO TUSER[3:0].
+// Baseline (1 beat = 1 record, TLAST always 1): buf_full[i] = FIFO i non-empty,
+// buf_clear[i] pops one entry.
+//
+// CS_FIFO_PATH selects the sequencer's buffer source (see the parameter above).
+// The FIFOs are always elaborated; when CS_FIFO_PATH = 0 their read side is
+// unused and m_axis_cs_tready holds (accept + discard) so an idle stream master
+// never wedges.
+// =============================================================================
+
+localparam int CS_LANES = 8;
+
+logic [31:0]         cs_fifo_rd_data  [0:CS_LANES-1];
+logic [CS_LANES-1:0] cs_fifo_rd_empty;
+logic [CS_LANES-1:0] cs_fifo_wr_full;
+logic [CS_LANES-1:0] cs_fifo_wr_en;
+logic [CS_LANES-1:0] cs_fifo_rd_en;
+
+logic [31:0]         cs_buf_data [0:CS_LANES-1];
+logic [7:0]          cs_buf_full;
+logic [7:0]          cs_buf_clear;      // driven by the path mux below
+
+wire [3:0] cs_wr_lane = m_axis_cs_tuser[3:0];
+
+assign m_axis_cs_tready = (cs_wr_lane < 4'(CS_LANES))
+                        ? ~cs_fifo_wr_full[cs_wr_lane]
+                        : 1'b1;          // out-of-range lane id: accept + drop
+
+always_comb begin
+    for (int k = 0; k < CS_LANES; k++)
+        cs_fifo_wr_en[k] = m_axis_cs_tvalid & m_axis_cs_tready
+                         & (cs_wr_lane == 4'(k));
+end
+
+genvar gl;
+generate
+    for (gl = 0; gl < CS_LANES; gl++) begin : g_cs_lane_fifo
+        greencoyote_cs_lane_fifo #(
+            .DATA_W (32),
+            .ADDR_W (CS_FIFO_AW)
+        ) u_cs_lane_fifo (
+            .wr_clk   (core_clk),
+            .wr_rst_n (peripheral_aresetn),
+            .wr_en    (cs_fifo_wr_en[gl]),
+            .wr_data  (m_axis_cs_tdata),
+            .wr_full  (cs_fifo_wr_full[gl]),
+            .rd_clk   (user_clk),
+            .rd_rst_n (peripheral_aresetn),
+            .rd_en    (cs_fifo_rd_en[gl]),
+            .rd_data  (cs_fifo_rd_data[gl]),
+            .rd_empty (cs_fifo_rd_empty[gl])
+        );
+        assign cs_buf_data[gl]   = cs_fifo_rd_data[gl];
+        assign cs_buf_full[gl]   = ~cs_fifo_rd_empty[gl];
+        assign cs_fifo_rd_en[gl] = cs_buf_clear[gl];
+    end
+endgenerate
+
+// -------- buffer-source path mux --------
+logic [31:0] seq_buf_data  [0:7];
+logic [7:0]  seq_buf_full;
+logic [7:0]  seq_buf_clear;      // from the sequencer
+
+always_comb begin
+    for (int k = 0; k < 8; k++)
+        seq_buf_data[k] = CS_FIFO_PATH ? cs_buf_data[k] : buf_data[k];
+end
+assign seq_buf_full = CS_FIFO_PATH ? cs_buf_full   : buf_full;
+assign buf_clear    = CS_FIFO_PATH ? 8'h00         : seq_buf_clear;  // external buffers
+assign cs_buf_clear = CS_FIFO_PATH ? seq_buf_clear : 8'h00;          // FIFO pop
 
 // =============================================================================
 // Internal wires — sequencer <-> bench ADC interface block
@@ -430,10 +526,10 @@ greencoyote_photonic_sequencer u_sequencer (
     .blk_scale_clamp    (blk_scale_clamp),
     .lane_bias_n        (lane_bias_n),
 
-    // GPU buffer interface
-    .buf_data           (buf_data),
-    .buf_full           (buf_full),
-    .buf_clear          (buf_clear),
+    // Buffer interface (via the CS_FIFO_PATH mux)
+    .buf_data           (seq_buf_data),
+    .buf_full           (seq_buf_full),
+    .buf_clear          (seq_buf_clear),
 
     // DAC PHY (internal — consumed by greencoyote_dac_if)
     .dac_data           (dac_data),
