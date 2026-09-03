@@ -1,0 +1,35 @@
+name: pilot-tb
+
+# Functional testbenches for the GreenCoyote-Bay pilot data plane (rtl/ + sim/):
+#   * greencoyote_tb.sv     — register block + reduction FSM + DAC/ADC roundtrip
+#   * tb_cs_fifo_path.sv    — M_AXIS_CS per-lane dual-clock FIFO ingress
+# Icarus Verilog only; the Vivado OOC timing check is a separate downstream step.
+# See sim/run_pilot_tb.sh.
+
+on:
+  push:
+    paths:
+      - 'rtl/**'
+      - 'sim/**'
+      - '.github/workflows/pilot-tb.yml'
+  pull_request:
+    paths:
+      - 'rtl/**'
+      - 'sim/**'
+      - '.github/workflows/pilot-tb.yml'
+  workflow_dispatch:
+
+jobs:
+  pilot-testbenches:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Icarus Verilog
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends iverilog
+          echo "iverilog: $(iverilog -V 2>&1 | head -1)"
+
+      - name: Run pilot testbenches
+        run: bash sim/run_pilot_tb.sh

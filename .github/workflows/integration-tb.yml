@@ -9,10 +9,14 @@ on:
   push:
     paths:
       - 'integration/**'
+      - 'rtl/**'
+      - 'sim/**'
       - '.github/workflows/integration-tb.yml'
   pull_request:
     paths:
       - 'integration/**'
+      - 'rtl/**'
+      - 'sim/**'
       - '.github/workflows/integration-tb.yml'
   workflow_dispatch:
 
