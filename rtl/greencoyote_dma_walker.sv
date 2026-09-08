@@ -116,8 +116,15 @@ module greencoyote_dma_walker #(
     wire        f_preload  = d_flags[3];       // PRELOAD: fill, do not fire (top honours it)
     wire [3:0]  f_prec     = d_flags[7:4];
 
-    wire [31:0] elem_bytes = (d_elog2 == 4'd0) ? 32'd1 : (32'd1 << d_elog2);
-    wire [AXI_ADDR_W-1:0] row_bytes = d_inner_ext * elem_bytes;
+    // elem_log2_bytes encoding (streaming_dma_architecture.md sec 2.2):
+    //   0 = 1/2 B (packed nibble) ; 1 = 1 B ; 2 = 2 B ; 3 = 4 B ; ...
+    // Address math uses whole-byte granularity; a packed-nibble run (elog2 = 0)
+    // is addressed at 1 B per 2 elements -> approximate here, exact packing is a
+    // read-side concern (v2).
+    wire [31:0] elem_bytes = (d_elog2 == 4'd0) ? 32'd1 : (32'd1 << (d_elog2 - 4'd1));
+    wire [AXI_ADDR_W-1:0] row_bytes = (d_elog2 == 4'd0)
+                                    ? {1'b0, d_inner_ext[15:1]}          // 1/2 B/elem
+                                    : (d_inner_ext * elem_bytes);
 
     // --------------------------------------------------------------------- FSM
     typedef enum logic [2:0] {

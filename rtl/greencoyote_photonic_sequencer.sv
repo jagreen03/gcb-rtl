@@ -20,7 +20,16 @@
 // (sec 5.4). This replaces the earlier `buf_data[i][11:0]` static truncation.
 // =============================================================================
 
-module greencoyote_photonic_sequencer (
+module greencoyote_photonic_sequencer #(
+    // Streaming Tensor DMA operand feed — optical-array geometry
+    // (gcb-spec/docs/optical_geometry_spec.md v1.0.0, LOCKED).
+    parameter int DMA_OPT_N        = 64,     // parallel optical channels
+    parameter int DMA_OPT_L        = 16,     // contraction lanes per channel per fire
+    parameter int DMA_OPT_BITS     = 8,      // INT8 operand
+    parameter int DMA_FIRES_PER_WIN= 512,    // optical beats per 256 ns accumulation window
+    parameter int DMA_ACT_W        = DMA_OPT_L*DMA_OPT_BITS,          // 128
+    parameter int DMA_WT_W         = DMA_OPT_N*DMA_OPT_L*DMA_OPT_BITS // 8192
+)(
     input  logic        clk,
     input  logic        rst_n,
 
@@ -63,7 +72,24 @@ module greencoyote_photonic_sequencer (
     // --- ADC PHY Interface ---
     input  logic [11:0] adc_data,               // 12-bit ADC result
     input  logic        adc_valid,              // ADC conversion complete
-    input  logic        conv_fault              // ADC conversion fault (1-cycle, with adc_valid)
+    input  logic        conv_fault,             // ADC conversion fault (1-cycle, with adc_valid)
+
+    // -------------------------------------------------------------------------
+    // Streaming Tensor DMA operand feed — optical (T_fire) clock domain.
+    // Separate from the carry-save reduction datapath above: this is the
+    // Phase-II optical-multiply beat. The sequencer STALLS optical beat
+    // generation until dma_armed is high (>= WINDOW_W operand rows buffered +
+    // weight tile loaded), and asserts seq_fire for one opt_clk per consumed
+    // operand row. greencoyote_streaming_dma sec 4.1; optical_geometry_spec.
+    // -------------------------------------------------------------------------
+    input  logic                    opt_clk,
+    input  logic                    opt_rst_n,
+    input  logic                    dma_armed,          // DMA feed ready for the window
+    input  logic                    dma_operand_valid,  // act_data/wt_data valid this beat
+    input  logic [DMA_ACT_W-1:0]    act_data,           // L x INT8 activation row (broadcast to all N)
+    input  logic [DMA_WT_W-1:0]     wt_data,            // N x (L x INT8) weight operands
+    output logic                    seq_fire,           // 1-cycle per consumed optical beat
+    output logic                    opt_window_done     // 1-cycle at FIRES_PER_WIN boundary
 );
 
 // =============================================================================
@@ -495,6 +521,56 @@ always_ff @(posedge clk or negedge rst_n) begin
             default: state <= IDLE;
 
         endcase
+    end
+end
+
+// =============================================================================
+// Streaming Tensor DMA optical beat generator (opt_clk / T_fire domain).
+// Stall until dma_armed; then one seq_fire per opt_clk. Count FIRES_PER_WIN
+// beats per accumulation window; pulse opt_window_done at each boundary.
+// Operands the DMA presents (aligned by dma_operand_valid, one opt_clk after
+// the corresponding seq_fire) are registered so a downstream optical-MAC model
+// can consume them and the integration TB can check them.
+// =============================================================================
+
+localparam int OPT_FCW = $clog2(DMA_FIRES_PER_WIN);   // 9
+
+logic [OPT_FCW-1:0]  opt_fire_cnt;
+logic [DMA_ACT_W-1:0] act_data_q;         // last activation row consumed
+logic [DMA_WT_W-1:0]  wt_data_q;          // last weight-operand set consumed
+logic [31:0]          opt_rows_consumed;  // beats consumed since reset (TB / debug)
+
+// One operand row is consumed per opt_clk while the feed is armed. seq_fire is
+// combinational off dma_armed so it can never be high when the feed is not
+// armed (no 1-cycle registered shadow at a window boundary).
+assign seq_fire = dma_armed;
+
+always_ff @(posedge opt_clk or negedge opt_rst_n) begin
+    if (!opt_rst_n) begin
+        opt_window_done   <= 1'b0;
+        opt_fire_cnt      <= '0;
+        act_data_q        <= '0;
+        wt_data_q         <= '0;
+        opt_rows_consumed <= '0;
+    end else begin
+        opt_window_done <= 1'b0;
+
+        // capture the operands the DMA hands back (aligned by dma_operand_valid)
+        if (dma_operand_valid) begin
+            act_data_q        <= act_data;
+            wt_data_q         <= wt_data;
+            opt_rows_consumed <= opt_rows_consumed + 1'b1;
+        end
+
+        // count optical beats; pulse opt_window_done every FIRES_PER_WIN
+        if (dma_armed) begin
+            if (opt_fire_cnt == OPT_FCW'(DMA_FIRES_PER_WIN-1)) begin
+                opt_fire_cnt    <= '0;
+                opt_window_done <= 1'b1;
+            end else begin
+                opt_fire_cnt <= opt_fire_cnt + 1'b1;
+            end
+        end
     end
 end
 

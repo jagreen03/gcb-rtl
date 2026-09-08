@@ -98,6 +98,14 @@ greencoyote_top dut (
     .peripheral_aresetn (rst_n),
     .core_clk           (clk),          // CS_FIFO_PATH=0: second clock unused
 
+    // Streaming Tensor DMA — dormant in this TB (no descriptor programmed).
+    .opt_clk            (clk),
+    .opt_rst_n          (rst_n),
+    .dma_act_arready    (1'b0), .dma_act_rid (4'h0), .dma_act_rdata (512'h0),
+    .dma_act_rresp      (2'b0), .dma_act_rlast (1'b0), .dma_act_rvalid (1'b0),
+    .dma_wt_arready     (1'b0), .dma_wt_rid (4'h0), .dma_wt_rdata (512'h0),
+    .dma_wt_rresp       (2'b0), .dma_wt_rlast (1'b0), .dma_wt_rvalid (1'b0),
+
     // M_AXIS_CS carry-save stream slave — idle in this TB (legacy buf_* path)
     .m_axis_cs_tvalid   (1'b0),
     .m_axis_cs_tready   (),

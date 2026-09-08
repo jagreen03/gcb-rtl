@@ -125,6 +125,7 @@ module greencoyote_dma_axi_master #(
     logic                a_fill_sel;
     logic [8:0]          a_beats_left;
     logic                act_bank_ready_push;
+    logic [0:0]          act_bank_ready_id;    // id captured BEFORE the ping-pong flip
 
     bstate_t             w_st;
     logic [BANK_AW-1:0]  w_bank;
@@ -139,6 +140,7 @@ module greencoyote_dma_axi_master #(
     logic [11:0]         act_rows_left;
     logic                act_have_bank;
     logic                act_bank_free_push;
+    logic [0:0]          act_bank_free_id;    // drained bank id, captured before re-point
 
     // ============================================ CDC token FIFOs
     logic       act_bank_ready_full, act_bank_ready_empty, act_bank_ready_pop;
@@ -178,6 +180,7 @@ module greencoyote_dma_axi_master #(
             act_arlen            <= '0;
             act_arvalid          <= 1'b0;
             act_bank_ready_push  <= 1'b0;
+            act_bank_ready_id    <= 1'b0;
         end else begin
             act_bank_ready_push <= 1'b0;
             unique case (a_st)
@@ -202,6 +205,7 @@ module greencoyote_dma_axi_master #(
                             a_st <= B_IDLE;
                             if (a_wr_word == ACT_AW'(ACT_BUF_WR_DEPTH-1)) begin
                                 act_bank_ready_push <= 1'b1;   // fill bank complete
+                                act_bank_ready_id   <= a_fill_sel;   // capture id before flip
                                 a_fill_sel <= ~a_fill_sel;
                                 a_wr_word  <= '0;
                             end else begin
@@ -269,13 +273,13 @@ module greencoyote_dma_axi_master #(
     // ============================================ CDC token channels
     greencoyote_cs_lane_fifo #(.DATA_W(1), .ADDR_W(2)) u_bank_ready (
         .wr_clk (clk),     .wr_rst_n (rst_n),
-        .wr_en  (act_bank_ready_push), .wr_data (a_fill_sel), .wr_full (act_bank_ready_full),
+        .wr_en  (act_bank_ready_push), .wr_data (act_bank_ready_id), .wr_full (act_bank_ready_full),
         .rd_clk (rd_clk),  .rd_rst_n (rd_rst_n),
         .rd_en  (act_bank_ready_pop),  .rd_data (act_ready_bank_id), .rd_empty (act_bank_ready_empty)
     );
     greencoyote_cs_lane_fifo #(.DATA_W(1), .ADDR_W(2)) u_bank_free (
         .wr_clk (rd_clk),  .wr_rst_n (rd_rst_n),
-        .wr_en  (act_bank_free_push), .wr_data (act_rd_bank), .wr_full (act_bank_free_full),
+        .wr_en  (act_bank_free_push), .wr_data (act_bank_free_id), .wr_full (act_bank_free_full),
         .rd_clk (clk),     .rd_rst_n (rst_n),
         .rd_en  (1'b1),               .rd_data (act_free_bank_id), .rd_empty (act_bank_free_empty)
     );
@@ -292,13 +296,17 @@ module greencoyote_dma_axi_master #(
             act_rows_left      <= '0;
             act_have_bank      <= 1'b0;
             act_bank_free_push <= 1'b0;
+            act_bank_free_id   <= 1'b0;
             underrun           <= 1'b0;
             act_rd_data        <= '0;
         end else begin
             act_bank_free_push <= 1'b0;
 
             if ((!act_have_bank || act_rows_left == 12'd0) && !act_bank_ready_empty) begin
-                if (act_have_bank) act_bank_free_push <= 1'b1;  // return drained bank
+                if (act_have_bank) begin
+                    act_bank_free_push <= 1'b1;              // return drained bank
+                    act_bank_free_id   <= act_rd_bank;      // capture id before re-point
+                end
                 act_rd_bank   <= act_ready_bank_id[0];
                 act_rd_word   <= '0;
                 act_rd_sub    <= '0;

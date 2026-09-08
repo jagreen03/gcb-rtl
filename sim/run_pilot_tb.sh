@@ -15,6 +15,9 @@ SRC=(
     "$RTL/rtl/greencoyote_cs_lane_fifo.sv"
     "$RTL/rtl/greencoyote_dac_if.sv"
     "$RTL/rtl/greencoyote_adc_if.sv"
+    "$RTL/rtl/greencoyote_dma_walker.sv"
+    "$RTL/rtl/greencoyote_dma_axi_master.sv"
+    "$RTL/rtl/greencoyote_streaming_dma.sv"
     "$RTL/rtl/greencoyote_top.sv"
     "greencoyote_tb.sv"
 )

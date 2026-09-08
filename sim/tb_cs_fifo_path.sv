@@ -70,6 +70,14 @@ greencoyote_top #(
     .peripheral_aresetn (rst_n),
     .core_clk           (core_clk),
 
+    // Streaming Tensor DMA — dormant in this TB.
+    .opt_clk            (user_clk),
+    .opt_rst_n          (rst_n),
+    .dma_act_arready    (1'b0), .dma_act_rid (4'h0), .dma_act_rdata (512'h0),
+    .dma_act_rresp      (2'b0), .dma_act_rlast (1'b0), .dma_act_rvalid (1'b0),
+    .dma_wt_arready     (1'b0), .dma_wt_rid (4'h0), .dma_wt_rdata (512'h0),
+    .dma_wt_rresp       (2'b0), .dma_wt_rlast (1'b0), .dma_wt_rvalid (1'b0),
+
     .m_axis_cs_tvalid   (cs_tvalid),
     .m_axis_cs_tready   (cs_tready),
     .m_axis_cs_tdata    (cs_tdata),

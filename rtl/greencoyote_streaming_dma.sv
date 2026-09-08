@@ -328,16 +328,20 @@ module greencoyote_streaming_dma
         if (!opt_rst_n) begin
             window_w_m <= '0; window_w_s <= '0;
             r_en_m <= 1'b0;   r_en_opt <= 1'b0;
-            wt_rd_col <= 9'd0; act_rd_en <= 1'b0; wt_rd_en <= 1'b0; operand_valid <= 1'b0;
+            wt_rd_col <= 9'd0; act_rd_en <= 1'b0; wt_rd_en <= 1'b0;
+            operand_valid <= 1'b0;
         end else begin
             window_w_m <= r_window_w; window_w_s <= window_w_m;
             r_en_m <= r_en;          r_en_opt <= r_en_m;
-            act_rd_en <= 1'b0; wt_rd_en <= 1'b0; operand_valid <= 1'b0;
+            act_rd_en <= 1'b0; wt_rd_en <= 1'b0;
+            // the line-buffer reads are registered inside u_axi, so operand_valid
+            // is act_rd_en delayed exactly one opt_clk to line up with
+            // act_operands / wt_operands.
+            operand_valid <= act_rd_en;
             if (seq_fire && dma_armed) begin
-                act_rd_en     <= 1'b1;
-                wt_rd_en      <= 1'b1;
-                operand_valid <= 1'b1;
-                wt_rd_col     <= (wt_rd_col == 9'(FIRES_PER_WIN-1)) ? 9'd0 : (wt_rd_col + 9'd1);
+                act_rd_en <= 1'b1;
+                wt_rd_en  <= 1'b1;
+                wt_rd_col <= (wt_rd_col == 9'(FIRES_PER_WIN-1)) ? 9'd0 : (wt_rd_col + 9'd1);
             end
         end
     end

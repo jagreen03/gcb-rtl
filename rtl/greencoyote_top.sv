@@ -175,7 +175,54 @@ module greencoyote_top #(
     output logic        flush_ombs,
     output logic        irq_before_power,
     output logic [11:0] shutdown_timeout_ms,
-    output logic [8:0]  tile_select
+    output logic [8:0]  tile_select,
+
+    // -------------------------------------------------------------------------
+    // Streaming Tensor DMA — inbound operand feed (gcb-spec/docs/
+    // streaming_dma_architecture.md, optical_geometry_spec.md v1.0.0).
+    // Optical (T_fire) clock domain + two 512-bit AXI4 read-master ports.
+    // -------------------------------------------------------------------------
+    input  logic         opt_clk,               // 2.0 GHz optical beat clock
+    input  logic         opt_rst_n,
+
+    // AXI4 read master — ACTIVATION port (AR/R only)
+    output logic [3:0]   dma_act_arid,
+    output logic [47:0]  dma_act_araddr,
+    output logic [7:0]   dma_act_arlen,
+    output logic [2:0]   dma_act_arsize,
+    output logic [1:0]   dma_act_arburst,
+    output logic [3:0]   dma_act_arcache,
+    output logic [2:0]   dma_act_arprot,
+    output logic         dma_act_arvalid,
+    input  logic         dma_act_arready,
+    input  logic [3:0]   dma_act_rid,
+    input  logic [511:0] dma_act_rdata,
+    input  logic [1:0]   dma_act_rresp,
+    input  logic         dma_act_rlast,
+    input  logic         dma_act_rvalid,
+    output logic         dma_act_rready,
+
+    // AXI4 read master — WEIGHT port (AR/R only)
+    output logic [3:0]   dma_wt_arid,
+    output logic [47:0]  dma_wt_araddr,
+    output logic [7:0]   dma_wt_arlen,
+    output logic [2:0]   dma_wt_arsize,
+    output logic [1:0]   dma_wt_arburst,
+    output logic [3:0]   dma_wt_arcache,
+    output logic [2:0]   dma_wt_arprot,
+    output logic         dma_wt_arvalid,
+    input  logic         dma_wt_arready,
+    input  logic [3:0]   dma_wt_rid,
+    input  logic [511:0] dma_wt_rdata,
+    input  logic [1:0]   dma_wt_rresp,
+    input  logic         dma_wt_rlast,
+    input  logic         dma_wt_rvalid,
+    output logic         dma_wt_rready,
+
+    // DMA observation taps (bring-up)
+    output logic         dma_armed_o,
+    output logic         dma_underrun_o,
+    output logic         dma_operand_valid_o
 );
 
 // =============================================================================
@@ -186,7 +233,31 @@ logic [7:0]  mmio_addr;
 logic [31:0] mmio_wdata;
 logic        mmio_we;
 logic        mmio_re;
-logic [31:0] mmio_rdata;
+logic [31:0] mmio_rdata;      // muxed: DMA block wins on a DMA-aperture hit
+logic [31:0] pr_rdata;        // greencoyote_pilot_regs readback
+logic [31:0] dma_rdata;       // greencoyote_streaming_dma readback (0xC4-0xE4)
+logic        dma_reg_hit;
+
+assign mmio_rdata = dma_reg_hit ? dma_rdata : pr_rdata;
+
+// =============================================================================
+// Internal wires — Streaming Tensor DMA <-> photonic sequencer
+// =============================================================================
+localparam int DMA_ACT_W = 128;
+localparam int DMA_WT_W  = 8192;
+
+logic                 dma_armed;
+logic                 dma_underrun;
+logic                 dma_operand_valid;
+logic [DMA_ACT_W-1:0] dma_act_operands;
+logic [DMA_WT_W-1:0]  dma_wt_operands;
+logic                 seq_fire;
+logic                 seq_opt_window_done;
+logic                 irq_dma;
+
+assign dma_armed_o         = dma_armed;
+assign dma_underrun_o      = dma_underrun;
+assign dma_operand_valid_o = dma_operand_valid;
 
 // =============================================================================
 // Internal wires — pilot_regs control outputs to sequencer
@@ -359,7 +430,7 @@ greencoyote_axi_lite_wrapper u_axi_lite (
     .reg_rdata      (mmio_rdata),
 
     .interrupt      (interrupt),
-    .irq_in         (irq_out)
+    .irq_in         (irq_out | irq_dma)
 );
 
 // =============================================================================
@@ -376,7 +447,7 @@ greencoyote_pilot_regs u_pilot_regs (
     .mmio_wdata         (mmio_wdata),
     .mmio_we            (mmio_we),
     .mmio_re            (mmio_re),
-    .mmio_rdata         (mmio_rdata),
+    .mmio_rdata         (pr_rdata),      // muxed with dma_rdata at top level
 
     // Precision mode outputs to sequencer
     .mode_sel           (mode_sel),
@@ -562,7 +633,65 @@ greencoyote_photonic_sequencer u_sequencer (
     // ADC PHY (internal — driven by greencoyote_adc_if)
     .adc_data           (adc_data),
     .adc_valid          (adc_valid),
-    .conv_fault         (conv_fault)
+    .conv_fault         (conv_fault),
+
+    // Streaming Tensor DMA operand feed (optical domain)
+    .opt_clk            (opt_clk),
+    .opt_rst_n          (opt_rst_n),
+    .dma_armed          (dma_armed),
+    .dma_operand_valid  (dma_operand_valid),
+    .act_data           (dma_act_operands),
+    .wt_data            (dma_wt_operands),
+    .seq_fire           (seq_fire),
+    .opt_window_done    (seq_opt_window_done)
+);
+
+// =============================================================================
+// Module: Streaming Tensor DMA — inbound operand feed
+// registers.yaml DMA block 0xC4-0xE4 (map_version 0.6.0);
+// gcb-spec/docs/streaming_dma_architecture.md + optical_geometry_spec.md v1.0.0.
+// Shares the MMIO bus with pilot_regs; wins the readback on a DMA-aperture hit.
+// =============================================================================
+
+greencoyote_streaming_dma u_streaming_dma (
+    .user_clk       (user_clk),
+    .user_rst_n     (peripheral_aresetn),
+    .opt_clk        (opt_clk),
+    .opt_rst_n      (opt_rst_n),
+
+    .reg_addr       (mmio_addr),
+    .reg_wdata      (mmio_wdata),
+    .reg_we         (mmio_we),
+    .reg_re         (mmio_re),
+    .reg_rdata      (dma_rdata),
+    .reg_hit        (dma_reg_hit),
+
+    .op_precision        (mode_sel),     // PRECISION_MODE.MODE_SEL mirror
+    .irq_dma_done_en     (1'b1),         // TODO: pilot_regs IRQ_CTRL[5] (hand RTL predates map 0.6.0)
+    .irq_dma_underrun_en (1'b1),         // TODO: pilot_regs IRQ_CTRL[6]
+    .irq_dma        (irq_dma),
+
+    // AXI4 read master — ACTIVATION port -> top-level interface
+    .act_arid   (dma_act_arid),   .act_araddr (dma_act_araddr), .act_arlen (dma_act_arlen),
+    .act_arsize (dma_act_arsize), .act_arburst(dma_act_arburst),.act_arcache(dma_act_arcache),
+    .act_arprot (dma_act_arprot), .act_arvalid(dma_act_arvalid),.act_arready(dma_act_arready),
+    .act_rid    (dma_act_rid),    .act_rdata  (dma_act_rdata),  .act_rresp (dma_act_rresp),
+    .act_rlast  (dma_act_rlast),  .act_rvalid (dma_act_rvalid), .act_rready(dma_act_rready),
+
+    // AXI4 read master — WEIGHT port -> top-level interface
+    .wt_arid    (dma_wt_arid),    .wt_araddr  (dma_wt_araddr),  .wt_arlen  (dma_wt_arlen),
+    .wt_arsize  (dma_wt_arsize),  .wt_arburst (dma_wt_arburst), .wt_arcache(dma_wt_arcache),
+    .wt_arprot  (dma_wt_arprot),  .wt_arvalid (dma_wt_arvalid), .wt_arready(dma_wt_arready),
+    .wt_rid     (dma_wt_rid),     .wt_rdata   (dma_wt_rdata),   .wt_rresp  (dma_wt_rresp),
+    .wt_rlast   (dma_wt_rlast),   .wt_rvalid  (dma_wt_rvalid),  .wt_rready (dma_wt_rready),
+
+    // handshake + operands to the photonic sequencer
+    .seq_fire       (seq_fire),
+    .dma_armed      (dma_armed),
+    .dma_underrun   (dma_underrun),
+    .operand_valid  (dma_operand_valid),
+    .act_operands   (dma_act_operands),
+    .wt_operands    (dma_wt_operands)
 );
 
 // =============================================================================
