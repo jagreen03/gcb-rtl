@@ -34,7 +34,8 @@ foreach f $srcs {
 }
 
 # ---- out-of-context synthesis (no I/O buffers inserted) ------------------
-set_param synth.elaboration.rodinMoreOptions "rt::set_parameter max_array_size 10000000"
+# (No array-size override needed: the 64-bank weight store is declared per
+#  bank in greencoyote_dma_axi_master.sv, so no elaborated array is large.)
 synth_design -top $top -mode out_of_context
 
 # ---- timing constraints --------------------------------------------------

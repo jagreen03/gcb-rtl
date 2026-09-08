@@ -112,10 +112,13 @@ module greencoyote_dma_axi_master #(
     localparam int WT_BEATS_ALL = N_OPT_CH*WT_BUF_WR_DEPTH;     // 8192
 
     // ================================================================= storage
+    // act_mem: 2 x 256 x 512 b = 262 144 b, one array.
+    // wt_mem: the 64-bank weight store is declared per bank inside the
+    //   g_wt_rd generate below, not as a single 64 x 128 x 512 b (= 4.19 Mb)
+    //   3D array, so no elaborated array exceeds the synthesiser's array-size
+    //   limit. Each bank is WT_BUF_WR_DEPTH x AXI_DATA_W bits.
     (* ram_style = "ultra" *) logic [AXI_DATA_W-1:0]
         act_mem [0:ACT_BUF_BANKS-1][0:ACT_BUF_WR_DEPTH-1];
-    (* ram_style = "ultra" *) logic [AXI_DATA_W-1:0]
-        wt_mem  [0:N_OPT_CH-1][0:WT_BUF_WR_DEPTH-1];
 
     // ============================================ fabric-domain declarations
     typedef enum logic [1:0] { B_IDLE, B_AR, B_DATA } bstate_t;
@@ -254,7 +257,7 @@ module greencoyote_dma_axi_master #(
                         w_st       <= B_DATA;
                     end
                 B_DATA: if (wt_rvalid && wt_rready) begin
-                        wt_mem[w_bank][w_word] <= wt_rdata;
+                        // beat is written into the per-bank RAM in g_wt_rd
                         w_word       <= w_word + 1'b1;
                         w_beats_left <= w_beats_left - 9'd1;
                         if (!wt_loaded) begin
@@ -331,16 +334,27 @@ module greencoyote_dma_axi_master #(
         end
     end
 
-    // ============================================ weight read (optical, 64 banks)
+    // ===================================== weight buffer: 64 per-channel banks
+    // Distributed store (optical_geometry_spec sec 3.3). Write side = fabric
+    // clock (from the WT AXI burst engine), read side = optical clock. Split
+    // per bank so no single elaborated array exceeds the array-size limit.
     wire [WT_AW-1:0]   wt_rd_word = wt_rd_col[WT_AW+SUBW_AW-1 : SUBW_AW];
     wire [SUBW_AW-1:0] wt_rd_sub  = wt_rd_col[SUBW_AW-1:0];
+    wire              wt_wr_beat  = (w_st == B_DATA) && wt_rvalid && wt_rready;
     genvar b;
     generate
         for (b = 0; b < N_OPT_CH; b++) begin : g_wt_rd
+            (* ram_style = "ultra" *) logic [AXI_DATA_W-1:0] wbank [0:WT_BUF_WR_DEPTH-1];
             logic [RD_W-1:0] slice_q;
+            // write (fabric clock) -- one bank enabled per beat
+            always_ff @(posedge clk) begin
+                if (wt_wr_beat && (w_bank == BANK_AW'(b)))
+                    wbank[w_word] <= wt_rdata;
+            end
+            // read (optical clock)
             always_ff @(posedge rd_clk or negedge rd_rst_n) begin
                 if (!rd_rst_n)     slice_q <= '0;
-                else if (wt_rd_en) slice_q <= wt_mem[b][wt_rd_word][wt_rd_sub*RD_W +: RD_W];
+                else if (wt_rd_en) slice_q <= wbank[wt_rd_word][wt_rd_sub*RD_W +: RD_W];
             end
             assign wt_rd_data[b*RD_W +: RD_W] = slice_q;
         end
