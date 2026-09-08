@@ -112,9 +112,9 @@ module greencoyote_dma_axi_master #(
     localparam int WT_BEATS_ALL = N_OPT_CH*WT_BUF_WR_DEPTH;     // 8192
 
     // ================================================================= storage
-    (* ram_style = "block" *) logic [AXI_DATA_W-1:0]
+    (* ram_style = "ultra" *) logic [AXI_DATA_W-1:0]
         act_mem [0:ACT_BUF_BANKS-1][0:ACT_BUF_WR_DEPTH-1];
-    (* ram_style = "block" *) logic [AXI_DATA_W-1:0]
+    (* ram_style = "ultra" *) logic [AXI_DATA_W-1:0]
         wt_mem  [0:N_OPT_CH-1][0:WT_BUF_WR_DEPTH-1];
 
     // ============================================ fabric-domain declarations

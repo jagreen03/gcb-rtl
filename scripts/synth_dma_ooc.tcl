@@ -34,6 +34,7 @@ foreach f $srcs {
 }
 
 # ---- out-of-context synthesis (no I/O buffers inserted) ------------------
+set_param synth.elaboration.rodinMoreOptions "rt::set_parameter max_array_size 10000000"
 synth_design -top $top -mode out_of_context
 
 # ---- timing constraints --------------------------------------------------
