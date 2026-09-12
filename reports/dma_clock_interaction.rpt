@@ -1,0 +1,27 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+--------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version      : Vivado v.2024.2 (win64) Build 5239630 Fri Nov 08 22:35:27 MST 2024
+| Date              : Tue Sep  8 13:06:26 2026
+| Host              : JohnIdeaPadPro5 running 64-bit major release  (build 9200)
+| Command           : report_clock_interaction -file ./reports/dma_clock_interaction.rpt
+| Design            : greencoyote_streaming_dma
+| Device            : xcu55c-fsvh2892
+| Speed File        : -2L  PRODUCTION 1.30 05-01-2022
+| Design State      : Synthesized
+| Temperature Grade : E
+--------------------------------------------------------------------------------------------------------------------------------------------------
+
+Clock Interaction Report
+
+Clock Interaction Table
+-----------------------
+
+                            WNS                             TNS Failing  TNS Total    WNS Path         Clock-Pair           Inter-Clock          
+From Clock    To Clock      Clock Edges  WNS(ns)   TNS(ns)    Endpoints    Endpoints  Requirement(ns)  Classification       Constraints          
+------------  ------------  -----------  -------  --------  -----------  -----------  ---------------  -------------------  -------------------  
+opt_clk       opt_clk       rise - rise    -1.17  -4341.44        16798        16825             0.50  Clean                Timed                
+opt_clk       user_clk                                                0           20                   Ignored              Asynchronous Groups  
+user_clk      opt_clk                                                 0         8350                   Ignored              Asynchronous Groups  
+user_clk      user_clk      rise - rise    -2.44   -181.93          279       799246             3.33  Clean                Timed                
+
+
