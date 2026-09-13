@@ -97,6 +97,13 @@ module greencoyote_pilot_regs #(
     // Interrupt output to host CPU
     output wire         irq_out,
 
+    // Streaming Tensor DMA interrupt enables (IRQ_CTRL[5]/[6], map_version
+    // 0.6.0) — gate greencoyote_streaming_dma's own irq_dma generation;
+    // unlike the enables above, these cross the module boundary rather
+    // than being consumed locally against r_irq_status.
+    output wire         irq_dma_done_en,
+    output wire         irq_dma_underrun_en,
+
     // Crossbar routing outputs to optical switch
     // Each port_dest field: 000-110=route to GPU N, 111=broadcast, 110=reduce, 101=pipeline-next
     output wire [2:0]   xbar_port_dest [0:7],  // Destination per input port
@@ -257,6 +264,8 @@ reg         r_irq_fire_done_en;
 reg         r_irq_cal_err_en;
 reg         r_irq_queue_full_en;
 reg         r_irq_pass_done_en;
+reg         r_irq_dma_done_en;      // IRQ_CTRL[5], map_version 0.6.0
+reg         r_irq_dma_underrun_en;  // IRQ_CTRL[6], map_version 0.6.0
 reg         r_irq_status;
 
 // 0x18 Crossbar Routing Low — ports 0-3
@@ -360,6 +369,8 @@ always @(posedge clk or negedge rst_n) begin
         r_irq_cal_err_en    <= 1'b0;
         r_irq_queue_full_en <= 1'b0;
         r_irq_pass_done_en  <= 1'b0;
+        r_irq_dma_done_en     <= 1'b0;
+        r_irq_dma_underrun_en <= 1'b0;
         r_irq_status        <= 1'b0;
         // Crossbar reset — default tensor parallel (all ports broadcast)
         r_xbar_dest0        <= 3'b111;  // broadcast
@@ -488,6 +499,8 @@ always @(posedge clk or negedge rst_n) begin
                     r_irq_cal_err_en    <= mmio_wdata[2];
                     r_irq_queue_full_en <= mmio_wdata[3];
                     r_irq_pass_done_en  <= mmio_wdata[4];
+                    r_irq_dma_done_en     <= mmio_wdata[5];
+                    r_irq_dma_underrun_en <= mmio_wdata[6];
                     if (mmio_wdata[9])   // IRQ_CLEAR
                         r_irq_status <= 1'b0;
                 end
@@ -702,7 +715,9 @@ always @(posedge clk) begin
 
             ADDR_IRQ_CTRL: mmio_rdata <= {22'h0,
                                    r_irq_status,     // [8] read only
-                                   3'h0,
+                                   1'h0,             // [7] RSVD_7
+                                   r_irq_dma_underrun_en,  // [6]
+                                   r_irq_dma_done_en,      // [5]
                                    r_irq_pass_done_en,
                                    r_irq_queue_full_en,
                                    r_irq_cal_err_en,
@@ -892,6 +907,8 @@ assign fire             = r_fire_pulse;
 assign auto_fire        = r_auto_fire;
 assign round_mode       = r_round_mode;
 assign irq_out          = r_irq_status && r_irq_en;
+assign irq_dma_done_en     = r_irq_dma_done_en;
+assign irq_dma_underrun_en = r_irq_dma_underrun_en;
 
 assign xbar_port_dest[0] = r_xbar_dest0;
 assign xbar_port_dest[1] = r_xbar_dest1;

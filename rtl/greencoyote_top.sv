@@ -294,6 +294,8 @@ logic [3:0]  lane_bias_n;
 // =============================================================================
 
 logic        irq_out;
+logic        irq_dma_done_en;
+logic        irq_dma_underrun_en;
 
 // =============================================================================
 // M_AXIS_CS ingress — per-lane dual-clock FIFOs (carry_save_streaming_contract.md
@@ -482,6 +484,10 @@ greencoyote_pilot_regs u_pilot_regs (
     // Interrupt output to AXI wrapper
     .irq_out            (irq_out),
 
+    // Streaming Tensor DMA interrupt enables (IRQ_CTRL[5]/[6])
+    .irq_dma_done_en      (irq_dma_done_en),
+    .irq_dma_underrun_en  (irq_dma_underrun_en),
+
     // ---- Crossbar routing (control out to ports, status stubbed) ----
     .xbar_port_dest     (xbar_port_dest),
     .xbar_mode          (xbar_mode),
@@ -667,8 +673,8 @@ greencoyote_streaming_dma u_streaming_dma (
     .reg_hit        (dma_reg_hit),
 
     .op_precision        (mode_sel),     // PRECISION_MODE.MODE_SEL mirror
-    .irq_dma_done_en     (1'b1),         // TODO: pilot_regs IRQ_CTRL[5] (hand RTL predates map 0.6.0)
-    .irq_dma_underrun_en (1'b1),         // TODO: pilot_regs IRQ_CTRL[6]
+    .irq_dma_done_en     (irq_dma_done_en),      // pilot_regs IRQ_CTRL[5] (was hardcoded 1'b1 - TKT not yet filed)
+    .irq_dma_underrun_en (irq_dma_underrun_en),  // pilot_regs IRQ_CTRL[6]
     .irq_dma        (irq_dma),
 
     // AXI4 read master — ACTIVATION port -> top-level interface
